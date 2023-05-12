@@ -18,6 +18,8 @@
 const { Headers } = require('node-fetch');
 const fetch = require('node-fetch');
 const { getConfig } = require('./config');
+const { getAioLogger } = require('./utils');
+const { sharepointAuth } = require('./sharepointAuth');
 
 const BATCH_REQUEST_LIMIT = 20;
 const BATCH_DELAY_TIME = 200;
@@ -26,10 +28,15 @@ const TOO_MANY_REQUESTS = '429';
 let nextCallAfter = 0;
 
 // eslint-disable-next-line default-param-last
-function getAuthorizedRequestOption(spToken, { body = null, json = true, method = 'GET' } = {}) {
-    const bearer = `Bearer ${spToken}`;
+async function getAuthorizedRequestOption(spToken, { body = null, json = true, method = 'GET' } = {}) {
+    // const bearer = `Bearer ${spToken}`;
+    const logger = getAioLogger();
+    const sharePoint = await sharepointAuth(logger);
+    const appSpToken = await sharePoint.getAccessToken();
+    const bearer = `Bearer ${appSpToken}`;
     const headers = new Headers();
     headers.append('Authorization', bearer);
+    headers.append('User-Agent', 'ISV|Adobe|MiloFloodgate/0.1.0');
     if (json) {
         headers.append('Accept', 'application/json');
         headers.append('Content-Type', 'application/json');
@@ -43,13 +50,13 @@ function getAuthorizedRequestOption(spToken, { body = null, json = true, method 
     if (body) {
         options.body = typeof body === 'string' ? body : JSON.stringify(body);
     }
-
-    return options;
+    return options;;
 }
 
 async function getFileData(spToken, adminPageUri, filePath, isFloodgate) {
+    const logger = getAioLogger();
     const { sp } = await getConfig(adminPageUri);
-    const options = getAuthorizedRequestOption(spToken);
+    const options = await getAuthorizedRequestOption(spToken);
     const baseURI = isFloodgate ? sp.api.directory.create.fgBaseURI : sp.api.directory.create.baseURI;
     const resp = await fetch(`${baseURI}${filePath}`, options);
     const json = await resp.json();
@@ -92,10 +99,10 @@ async function getFileUsingDownloadUrl(downloadUrl) {
 }
 
 async function createFolder(spToken, adminPageUri, folder, isFloodgate) {
+    const logger = getAioLogger();
     const { sp } = await getConfig(adminPageUri);
-    const options = getAuthorizedRequestOption(spToken, { method: sp.api.directory.create.method });
+    const options = await getAuthorizedRequestOption(spToken, { method: sp.api.directory.create.method });
     options.body = JSON.stringify(sp.api.directory.create.payload);
-
     const baseURI = isFloodgate ? sp.api.directory.create.fgBaseURI : sp.api.directory.create.baseURI;
 
     const res = await fetchWithRetry(`${baseURI}${folder}`, options);
@@ -123,7 +130,7 @@ async function createUploadSession(spToken, sp, file, dest, filename, isFloodgat
         fileSize: file.size,
         name: filename,
     };
-    const options = getAuthorizedRequestOption(spToken, { method: sp.api.file.createUploadSession.method });
+    const options = await getAuthorizedRequestOption(spToken, { method: sp.api.file.createUploadSession.method });
     options.body = JSON.stringify(payload);
 
     const baseURI = isFloodgate ? sp.api.file.createUploadSession.fgBaseURI : sp.api.file.createUploadSession.baseURI;
@@ -133,7 +140,7 @@ async function createUploadSession(spToken, sp, file, dest, filename, isFloodgat
 }
 
 async function uploadFile(spToken, sp, uploadUrl, file) {
-    const options = getAuthorizedRequestOption(spToken, {
+    const options = await getAuthorizedRequestOption(spToken, {
         json: false,
         method: sp.api.file.upload.method,
     });
@@ -146,7 +153,7 @@ async function uploadFile(spToken, sp, uploadUrl, file) {
 }
 
 async function deleteFile(spToken, sp, filePath) {
-    const options = getAuthorizedRequestOption(spToken, {
+    const options = await getAuthorizedRequestOption(spToken, {
         json: false,
         method: sp.api.file.delete.method,
     });
@@ -155,7 +162,7 @@ async function deleteFile(spToken, sp, filePath) {
 }
 
 async function renameFile(spToken, spFileUrl, filename) {
-    const options = getAuthorizedRequestOption(spToken, { method: 'PATCH', body: JSON.stringify({ name: filename }) });
+    const options = await getAuthorizedRequestOption(spToken, { method: 'PATCH', body: JSON.stringify({ name: filename }) });
     options.headers.append('Prefer', 'bypass-shared-lock');
     return fetch(spFileUrl, options);
 }
@@ -195,6 +202,7 @@ async function createSessionAndUploadFile(spToken, sp, file, dest, filename, isF
 }
 
 async function copyFile(spToken, adminPageUri, srcPath, destinationFolder, newName, isFloodgate, isFloodgateLockedFile) {
+    const logger = getAioLogger();
     await createFolder(spToken, adminPageUri, destinationFolder, isFloodgate);
     const { sp } = await getConfig(adminPageUri);
     const { baseURI } = sp.api.file.copy;
@@ -205,7 +213,7 @@ async function copyFile(spToken, adminPageUri, srcPath, destinationFolder, newNa
     if (newName) {
         payload.name = newName;
     }
-    const options = getAuthorizedRequestOption(spToken, {
+    const options = await getAuthorizedRequestOption(spToken, {
         method: sp.api.file.copy.method,
         body: JSON.stringify(payload),
     });
@@ -263,7 +271,7 @@ async function saveFile(spToken, adminPageUri, file, dest, isFloodgate) {
 async function updateExcelTable(spToken, adminPageUri, excelPath, tableName, values) {
     const { sp } = await getConfig(adminPageUri);
 
-    const options = getAuthorizedRequestOption(spToken, {
+    const options = await getAuthorizedRequestOption(spToken, {
         body: JSON.stringify({ values }),
         method: sp.api.excel.update.method,
     });
@@ -281,6 +289,13 @@ async function updateExcelTable(spToken, adminPageUri, excelPath, tableName, val
 // fetch-with-retry added to check for Sharepoint RateLimit headers and 429 errors and to handle them accordingly.
 async function fetchWithRetry(apiUrl, options, retryCounts) {
     let retryCount = retryCounts || 0;
+    const logger = getAioLogger();
+
+    // Below logs can be enabled in case of any network calls checking
+    // const logInfo = { apiUrl: apiUrl, options: options, retryCounts: retryCounts, from: new Error().stack};
+    // logger.info('-- FetchWithRetry -->');
+    // logger.info(JSON.stringify(logInfo || {}));
+    // logger.info('<-- FetchWithRetry --');
 
     return new Promise((resolve, reject) => {
         const currentTime = Date.now();
@@ -293,8 +308,11 @@ async function fetchWithRetry(apiUrl, options, retryCounts) {
         } else {
             retryCount += 1;
             fetch(apiUrl, options).then((resp) => {
+                // Log all headers
+                logHeaders(resp);
                 const retryAfter = resp.headers.get('ratelimit-reset') || resp.headers.get('retry-after') || 0;
                 if ((resp.headers.get('test-retry-status') === TOO_MANY_REQUESTS) || (resp.status === TOO_MANY_REQUESTS)) {
+                    logger.info(` Too Many Request - ${resp.status} `);
                     nextCallAfter = Date.now() + retryAfter * 1000;
                     fetchWithRetry(apiUrl, options, retryCount)
                         .then((newResp) => resolve(newResp))
@@ -307,6 +325,19 @@ async function fetchWithRetry(apiUrl, options, retryCounts) {
         }
     });
 }
+
+function logHeaders(response) {
+  const logger = getAioLogger();
+  const headers = {};
+  response.headers.forEach((value, name) => {
+    headers[name] = value;
+  });
+  const logStr = response.status + ' ' + JSON.stringify(headers);// + new Error().stack.replace('Error','');
+
+  if ( logStr.toUpperCase().indexOf('RATE') > 0 || logStr.toUpperCase().indexOf('RETRY') > 0 )  logger.info(logStr);
+}
+
+
 
 module.exports = {
     getAuthorizedRequestOption,

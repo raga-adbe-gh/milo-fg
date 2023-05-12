@@ -24,6 +24,7 @@ const {
 const {
     getAioLogger, simulatePreview, handleExtension, updateStatusToStateLib, PROMOTE_ACTION
 } = require('../utils');
+const applConfig = require('../applConfig');
 
 const BATCH_REQUEST_PROMOTE = 20;
 const DELAY_TIME_PROMOTE = 3000;
@@ -31,6 +32,8 @@ const MAX_CHILDREN = 1000;
 
 async function main(params) {
     const logger = getAioLogger();
+    applConfig.setAppConfig(params);
+
     let payload;
     const {
         spToken, adminPageUri, projectExcelPath, projectRoot
@@ -68,7 +71,7 @@ async function findAllFiles(spToken, adminPageUri) {
     const { sp } = await getConfig(adminPageUri);
     const baseURI = `${sp.api.excel.update.fgBaseURI}`;
     const rootFolder = baseURI.split('/').pop();
-    const options = getAuthorizedRequestOption(spToken, { method: 'GET' });
+    const options = await getAuthorizedRequestOption(spToken, { method: 'GET' });
 
     return findAllFloodgatedFiles(baseURI, options, rootFolder, [], ['']);
 }
@@ -111,7 +114,7 @@ async function promoteCopy(spToken, adminPageUri, srcPath, destinationFolder) {
     const destRootFolder = `${sp.api.file.copy.baseURI}`.split('/').pop();
 
     const payload = { ...sp.api.file.copy.payload, parentReference: { path: `${destRootFolder}${destinationFolder}` } };
-    const options = getAuthorizedRequestOption(spToken, {
+    const options = await getAuthorizedRequestOption(spToken, {
         method: sp.api.file.copy.method,
         body: JSON.stringify(payload),
     });
@@ -142,7 +145,7 @@ async function promoteFloodgatedFiles(spToken, adminPageUri, projectExcelPath) {
             let promoteSuccess = false;
             logger.info(`Promoting ${filePath}`);
             const { sp } = await getConfig(adminPageUri);
-            const options = getAuthorizedRequestOption(spToken);
+            const options = await getAuthorizedRequestOption(spToken);
             const res = await fetch(`${sp.api.file.get.baseURI}${filePath}`, options);
             if (res.ok) {
                 // File exists at the destination (main content tree)

@@ -39,7 +39,7 @@ async function main(args) {
             updateStatusToStateLib(projectPath, PROJECT_STATUS.COMPLETED_WITH_ERROR, payload, '', COPY_ACTION);
             logger.error(payload);
         } else {
-            const storeValue = await getStatusFromStateLib(projectPath);
+            const storeValue = null; //await getStatusFromStateLib(projectPath);
             if (storeValue?.action?.status === PROJECT_STATUS.IN_PROGRESS) {
                 payload = 'A copy action project is already in progress.';
                 logger.error(payload);

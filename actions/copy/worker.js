@@ -22,12 +22,14 @@ const {
 const {
     getAioLogger, simulatePreview, handleExtension, updateStatusToStateLib, COPY_ACTION
 } = require('../utils');
+const applConfig = require('../applConfig');
 
 const BATCH_REQUEST_COPY = 20;
 const DELAY_TIME_COPY = 3000;
 
 async function main(params) {
     const logger = getAioLogger();
+    applConfig.setAppConfig(params);
     let payload;
     const {
         spToken, adminPageUri, projectExcelPath, projectRoot
@@ -82,7 +84,7 @@ async function floodgateContent(spToken, adminPageUri, projectExcelPath, project
 
         try {
             const srcPath = urlInfo.doc.filePath;
-            logger.info(`Copying ${srcPath} to pink folder`);
+            // logger.info(`Copying ${srcPath} to pink folder`);
 
             let copySuccess = false;
             if (urlInfo.doc.fg?.sp?.status !== 200) {
@@ -106,7 +108,7 @@ async function floodgateContent(spToken, adminPageUri, projectExcelPath, project
             status.srcPath = srcPath;
             status.url = urlInfo.doc.url;
         } catch (error) {
-            logger.error(`Error occurred when trying to copy files to floodgated content folder ${error.message}`);
+            logger.error(`Error occurred when trying to copy files to floodgated content folder ${error.message} at ${error.stack}`);
         }
         return status;
     }
@@ -154,7 +156,7 @@ async function floodgateContent(spToken, adminPageUri, projectExcelPath, project
         logger.info(errorMessage);
         throw new Error(errorMessage);
     } else {
-        logger.info('Copied content to floodgate tree successfully.');
+        // logger.info('Copied content to floodgate tree successfully.');
     }
 
     return 'All tasks for Floodgate Copy completed';

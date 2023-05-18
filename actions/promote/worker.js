@@ -49,8 +49,9 @@ async function main(params) {
             payload = 'Getting all files to be promoted';
             updateStatusToStateLib(projectRoot, PROJECT_STATUS.IN_PROGRESS, payload, undefined, PROMOTE_ACTION);
             logger.info(payload);
+
             payload = await promoteFloodgatedFiles(adminPageUri, projectExcelPath);
-            updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED, '', undefined, PROMOTE_ACTION);
+            updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED, payload, undefined, PROMOTE_ACTION);
         }
     } catch (err) {
         updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED_WITH_ERROR, err.message, undefined, PROMOTE_ACTION);
@@ -174,6 +175,7 @@ async function promoteFloodgatedFiles(adminPageUri, projectExcelPath) {
     }
 
     const startPromote = new Date();
+    let payload = 'Getting all floodgated files to promote';
     // Iterate the floodgate tree and get all files to promote
     const allFloodgatedFiles = await findAllFiles(adminPageUri);
     // create batches to process the data
@@ -194,20 +196,22 @@ async function promoteFloodgatedFiles(adminPageUri, projectExcelPath) {
         await delay(DELAY_TIME_PROMOTE);
     }
     const endPromote = new Date();
-    logger.info('Completed promoting all documents in the pink folder');
+    payload = 'Completed promoting all documents in the pink folder';
+    logger.info(payload);
 
     logger.info('Previewing promoted files.');
     const previewStatuses = [];
     for (let i = 0; i < promoteStatuses.length; i += 1) {
         if (promoteStatuses[i].success) {
             // eslint-disable-next-line no-await-in-loop
-            const result = await simulatePreview(handleExtension(promoteStatuses[i].srcPath), 1, true, adminPageUri);
+            const result = await simulatePreview(handleExtension(promoteStatuses[i].srcPath), 1, false, adminPageUri);
             previewStatuses.push(result);
         }
         // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
         await delay();
     }
-    logger.info('Completed generating Preview for promoted files.');
+    payload = 'Completed generating Preview for promoted files.';
+    logger.info(payload);
 
     const failedPromotes = promoteStatuses.filter((status) => !status.success)
         .map((status) => status.srcPath || 'Path Info Not available');
@@ -216,15 +220,20 @@ async function promoteFloodgatedFiles(adminPageUri, projectExcelPath) {
 
     const excelValues = [['PROMOTE', startPromote, endPromote, failedPromotes.join('\n'), failedPreviews.join('\n')]];
     await updateExcelTable(adminPageUri, projectExcelPath, 'PROMOTE_STATUS', excelValues);
-    logger.info('Project excel file updated with promote status.');
+    payload = 'Project excel file updated with promote status.';
+    logger.info(payload);
 
     if (failedPromotes.length > 0 || failedPreviews.length > 0) {
-        logger.info('Error occurred when promoting floodgated content. Check project excel sheet for additional information.');
+        payload = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
+        logger.info(payload);
+        throw new Error(payload);
     } else {
+        payload = 'Promoted floodgate tree successfully.';
         logger.info('Promoted floodgate tree successfully.');
     }
 
-    return 'All tasks for Floodgate Promote completed';
+    payload = 'All tasks for Floodgate Promote completed';
+    return payload;
 }
 
 exports.main = main;

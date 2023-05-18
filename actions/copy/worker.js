@@ -61,7 +61,7 @@ async function main(params) {
             updateStatusToStateLib(projectPath, PROJECT_STATUS.IN_PROGRESS, payload, undefined, COPY_ACTION);
             payload = await floodgateContent(adminPageUri, projectExcelPath, projectDetail);
 
-            updateStatusToStateLib(projectPath, PROJECT_STATUS.COMPLETED, undefined, undefined, COPY_ACTION);
+            updateStatusToStateLib(projectPath, PROJECT_STATUS.COMPLETED, payload, undefined, COPY_ACTION);
         }
     } catch (err) {
         updateStatusToStateLib(projectPath, PROJECT_STATUS.COMPLETED_WITH_ERROR, err.message, undefined, COPY_ACTION);

@@ -21,25 +21,27 @@ const { PROJECT_STATUS } = require('../project');
 const {
     getAioLogger, updateStatusToStateLib, getStatusFromStateLib, PROMOTE_ACTION
 } = require('../utils');
+const appConfig = require('../appConfig');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
     const logger = getAioLogger();
     let payload;
     const {
-        spToken, adminPageUri, projectExcelPath, projectRoot
+        adminPageUri, projectExcelPath, projectRoot
     } = args;
+    appConfig.setAppConfig(args);
     try {
         if (!projectRoot) {
             payload = 'Required data is not available to proceed with FG Promote action.';
             logger.error(payload);
-        } else if (!spToken || !adminPageUri || !projectExcelPath) {
+        } else if (!adminPageUri || !projectExcelPath) {
             payload = 'Required data is not available to proceed with FG Promote action.';
             updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED_WITH_ERROR, payload, '', PROMOTE_ACTION);
             logger.error(payload);
         } else {
             const storeValue = await getStatusFromStateLib(projectRoot);
-            if (storeValue?.action?.status === PROJECT_STATUS.IN_PROGRESS) {
+            if (!appConfig.getSkipInProgressCheck() && storeValue?.action?.status === PROJECT_STATUS.IN_PROGRESS) {
                 payload = 'A promote action project is already in progress.';
                 logger.error(payload);
             } else {

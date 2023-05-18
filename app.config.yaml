@@ -9,6 +9,18 @@ application:
           fgSite: $FG_SITE
           fgClientId: $FG_CLIENT_ID
           fgAuthority: $FG_AUTHORITY
+          shareUrl: $SHARE_URL
+          fgShareUrl: $FG_SHARE_URL
+          rootFolder: $ROOT_FOLDER
+          fgRootFolder: $FG_ROOT_FOLDER
+          skipInProgressCheck: $SKIP_INPROGRESS_CHECK
+          testAccessToken: $TEST_ACCESS_TOKEN
+          clientId: $CLIENT_ID
+          tenantId: $TENANT_ID
+          driveId: $DRIVE_ID
+          certPassword: $CERT_PASSWORD
+          certKey: $CERT_KEY
+          certThumbprint: $CERT_THUMB_PRINT
         actions:
           copy:
             function: actions/copy/copy.js

@@ -96,7 +96,7 @@ function injectSharepointData(projectUrls, filePaths, docPaths, spFiles, isFlood
     }
 }
 
-async function updateProjectWithDocs(spToken, adminPageUri, projectDetail) {
+async function updateProjectWithDocs(adminPageUri, projectDetail) {
     const logger = getAioLogger();
     if (!projectDetail || !projectDetail.filePaths) {
         const errorMessage = 'Error occurred when injecting sharepoint data';
@@ -105,9 +105,9 @@ async function updateProjectWithDocs(spToken, adminPageUri, projectDetail) {
     }
     const { filePaths } = projectDetail;
     const docPaths = [...filePaths.keys()];
-    const spFiles = await getFilesData(spToken, adminPageUri, docPaths);
+    const spFiles = await getFilesData(adminPageUri, docPaths);
     injectSharepointData(projectDetail.urls, filePaths, docPaths, spFiles);
-    const fgSpFiles = await getFilesData(spToken, adminPageUri, docPaths, true);
+    const fgSpFiles = await getFilesData(adminPageUri, docPaths, true);
     injectSharepointData(projectDetail.urls, filePaths, docPaths, fgSpFiles, true);
 }
 

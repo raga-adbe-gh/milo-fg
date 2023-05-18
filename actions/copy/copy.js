@@ -21,26 +21,29 @@ const { PROJECT_STATUS } = require('../project');
 const {
     getAioLogger, updateStatusToStateLib, COPY_ACTION, getStatusFromStateLib
 } = require('../utils');
+const appConfig = require('../appConfig');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
     const logger = getAioLogger();
     let payload;
     const {
-        spToken, adminPageUri, projectExcelPath, projectRoot
+        adminPageUri, projectExcelPath, projectRoot
     } = args;
+    appConfig.setAppConfig(args);
     const projectPath = `${projectRoot}${projectExcelPath}`;
     try {
         if (!projectRoot || !projectExcelPath) {
             payload = 'Could not determine the project path. Try reloading the page and trigger the action again.';
             logger.error(payload);
-        } else if (!spToken || !adminPageUri) {
+        } else if (!adminPageUri) {
             payload = 'Required data is not available to proceed with FG Promote action.';
             updateStatusToStateLib(projectPath, PROJECT_STATUS.COMPLETED_WITH_ERROR, payload, '', COPY_ACTION);
             logger.error(payload);
         } else {
             const storeValue = await getStatusFromStateLib(projectPath);
-            if (storeValue?.action?.status === PROJECT_STATUS.IN_PROGRESS) {
+            if (!appConfig.getSkipInProgressCheck() &&
+                storeValue?.action?.status === PROJECT_STATUS.IN_PROGRESS) {
                 payload = 'A copy action project is already in progress.';
                 logger.error(payload);
             } else {

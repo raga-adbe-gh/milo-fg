@@ -31,16 +31,17 @@ const MAX_CHILDREN = 1000;
 
 async function main(params) {
     const logger = getAioLogger();
-    appConfig.setAppConfig(params);
     let payload;
     const {
-        spToken, adminPageUri, projectExcelPath, projectRoot
+        adminPageUri, projectExcelPath, projectRoot
     } = params;
+    appConfig.setAppConfig(params);
+
     try {
         if (!projectRoot) {
             payload = 'Required data is not available to proceed with FG Promote action.';
             logger.error(payload);
-        } else if (!spToken || !adminPageUri || !projectExcelPath) {
+        } else if (!adminPageUri || !projectExcelPath) {
             payload = 'Required data is not available to proceed with FG Promote action.';
             updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED_WITH_ERROR, payload, undefined, PROMOTE_ACTION);
             logger.error(payload);
@@ -48,7 +49,7 @@ async function main(params) {
             payload = 'Getting all files to be promoted';
             updateStatusToStateLib(projectRoot, PROJECT_STATUS.IN_PROGRESS, payload, undefined, PROMOTE_ACTION);
             logger.info(payload);
-            payload = await promoteFloodgatedFiles(spToken, adminPageUri, projectExcelPath);
+            payload = await promoteFloodgatedFiles(adminPageUri, projectExcelPath);
             updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED, '', undefined, PROMOTE_ACTION);
         }
     } catch (err) {
@@ -65,11 +66,11 @@ async function main(params) {
 /**
  * Find all files in the pink tree to promote.
  */
-async function findAllFiles(spToken, adminPageUri) {
+async function findAllFiles(adminPageUri) {
     const { sp } = await getConfig(adminPageUri);
     const baseURI = `${sp.api.excel.update.fgBaseURI}`;
     const rootFolder = baseURI.split('/').pop();
-    const options = getAuthorizedRequestOption(spToken, { method: 'GET' });
+    const options = await getAuthorizedRequestOption({ method: 'GET' });
 
     return findAllFloodgatedFiles(baseURI, options, rootFolder, [], ['']);
 }
@@ -106,13 +107,13 @@ async function findAllFloodgatedFiles(baseURI, options, rootFolder, fgFiles, fgF
  * Copies the Floodgated files back to the main content tree.
  * Creates intermediate folders if needed.
  */
-async function promoteCopy(spToken, adminPageUri, srcPath, destinationFolder) {
-    await createFolder(spToken, adminPageUri, destinationFolder);
+async function promoteCopy(adminPageUri, srcPath, destinationFolder) {
+    await createFolder(adminPageUri, destinationFolder);
     const { sp } = await getConfig(adminPageUri);
     const destRootFolder = `${sp.api.file.copy.baseURI}`.split('/').pop();
 
     const payload = { ...sp.api.file.copy.payload, parentReference: { path: `${destRootFolder}${destinationFolder}` } };
-    const options = getAuthorizedRequestOption(spToken, {
+    const options = await getAuthorizedRequestOption({
         method: sp.api.file.copy.method,
         body: JSON.stringify(payload),
     });
@@ -134,7 +135,7 @@ async function promoteCopy(spToken, adminPageUri, srcPath, destinationFolder) {
     return copySuccess;
 }
 
-async function promoteFloodgatedFiles(spToken, adminPageUri, projectExcelPath) {
+async function promoteFloodgatedFiles(adminPageUri, projectExcelPath) {
     const logger = getAioLogger();
 
     async function promoteFile(downloadUrl, filePath) {
@@ -143,7 +144,7 @@ async function promoteFloodgatedFiles(spToken, adminPageUri, projectExcelPath) {
             let promoteSuccess = false;
             logger.info(`Promoting ${filePath}`);
             const { sp } = await getConfig(adminPageUri);
-            const options = getAuthorizedRequestOption(spToken);
+            const options = await getAuthorizedRequestOption();
             const res = await fetchWithRetry(`${sp.api.file.get.baseURI}${filePath}`, options);
             if (res.ok) {
                 // File exists at the destination (main content tree)
@@ -151,7 +152,7 @@ async function promoteFloodgatedFiles(spToken, adminPageUri, projectExcelPath) {
                 const file = await getFileUsingDownloadUrl(downloadUrl);
                 if (file) {
                     // Save the file in the main content tree
-                    const saveStatus = await saveFile(spToken, adminPageUri, file, filePath);
+                    const saveStatus = await saveFile(adminPageUri, file, filePath);
                     if (saveStatus.success) {
                         promoteSuccess = true;
                     }
@@ -160,7 +161,7 @@ async function promoteFloodgatedFiles(spToken, adminPageUri, projectExcelPath) {
                 // File does not exist at the destination (main content tree)
                 // File can be copied directly
                 const destinationFolder = `${filePath.substring(0, filePath.lastIndexOf('/'))}`;
-                promoteSuccess = await promoteCopy(spToken, adminPageUri, filePath, destinationFolder);
+                promoteSuccess = await promoteCopy(adminPageUri, filePath, destinationFolder);
             }
             status.success = promoteSuccess;
             status.srcPath = filePath;
@@ -174,7 +175,7 @@ async function promoteFloodgatedFiles(spToken, adminPageUri, projectExcelPath) {
 
     const startPromote = new Date();
     // Iterate the floodgate tree and get all files to promote
-    const allFloodgatedFiles = await findAllFiles(spToken, adminPageUri);
+    const allFloodgatedFiles = await findAllFiles(adminPageUri);
     // create batches to process the data
     const batchArray = [];
     for (let i = 0; i < allFloodgatedFiles.length; i += BATCH_REQUEST_PROMOTE) {
@@ -209,7 +210,7 @@ async function promoteFloodgatedFiles(spToken, adminPageUri, projectExcelPath) {
         .map((status) => status.path);
 
     const excelValues = [['PROMOTE', startPromote, endPromote, failedPromotes.join('\n'), failedPreviews.join('\n')]];
-    await updateExcelTable(spToken, adminPageUri, projectExcelPath, 'PROMOTE_STATUS', excelValues);
+    await updateExcelTable(adminPageUri, projectExcelPath, 'PROMOTE_STATUS', excelValues);
     logger.info('Project excel file updated with promote status.');
 
     if (failedPromotes.length > 0 || failedPreviews.length > 0) {

@@ -201,7 +201,7 @@ async function promoteFloodgatedFiles(adminPageUri, projectExcelPath) {
     for (let i = 0; i < promoteStatuses.length; i += 1) {
         if (promoteStatuses[i].success) {
             // eslint-disable-next-line no-await-in-loop
-            const result = await simulatePreview(handleExtension(promoteStatuses[i].srcPath), 1, true);
+            const result = await simulatePreview(handleExtension(promoteStatuses[i].srcPath), 1, true, adminPageUri);
             previewStatuses.push(result);
         }
         // eslint-disable-next-line no-await-in-loop, no-promise-executor-return

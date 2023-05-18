@@ -140,7 +140,7 @@ async function floodgateContent(adminPageUri, projectExcelPath, projectDetail) {
     for (let i = 0; i < copyStatuses.length; i += 1) {
         if (copyStatuses[i].success) {
             // eslint-disable-next-line no-await-in-loop
-            const result = await simulatePreview(handleExtension(copyStatuses[i].srcPath), 1, true);
+            const result = await simulatePreview(handleExtension(copyStatuses[i].srcPath), 1, true, adminPageUri);
             previewStatuses.push(result);
         }
         // eslint-disable-next-line no-await-in-loop

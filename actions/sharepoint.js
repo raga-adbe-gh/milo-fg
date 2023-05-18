@@ -326,7 +326,6 @@ function logHeaders(response) {
     });
     const hdrStr = JSON.stringify(headers);
     const logStr = `Status is ${response.status} with headers ${hdrStr}`;
-    // logStr  = logStr + new Error().stack.replace('Error','');
 
     if (logStr.toUpperCase().indexOf('RATE') > 0 || logStr.toUpperCase().indexOf('RETRY') > 0) logger.info(logStr);
 }

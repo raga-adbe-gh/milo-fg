@@ -30,17 +30,11 @@ class AppConfig {
         this.configMap.fgRootFolder = params.fgRootFolder;
         this.configMap.clientId = params.clientId;
         this.configMap.tenantId = params.tenantId;
-        this.configMap.driveId = params.driveId;
         this.configMap.certPassword = params.certPassword;
         this.configMap.certKey = params.certKey;
         this.configMap.certThumbprint = params.certThumbprint;
-        this.configMap.testAccessToken = params.testAccessToken;
         this.configMap.skipInProg = (params.skipInProgressCheck || '').toLowerCase() === 'true';
         this.extractPrivateKey();
-        // Test token in base64
-        if (this.configMap.testAccessToken) {
-            this.configMap.testAccessToken = Buffer.from(this.configMap.testAccessToken, 'base64');
-        }
     }
 
     getConfig() {
@@ -67,10 +61,6 @@ class AppConfig {
 
     getSkipInProgressCheck() {
         return true && this.configMap.skipInProg;
-    }
-
-    getTestAccessToken() {
-        return this.configMap.testAccessToken;
     }
 }
 

@@ -21,7 +21,6 @@ const appConfig = require('./appConfig');
 
 /**
  * Creates a new SharePoint object, that has two methods:
- * - getDriveId
  * - getAccessToken
  * Internally the function reads and parses the '.env' file and prepares the auth config to invoke the MSAL client for SharePoint authenticating.
  *
@@ -94,10 +93,6 @@ class SharepointAuth {
      */
     async getAccessToken() {
         const logger = getAioLogger();
-        if (appConfig.getTestAccessToken()) {
-            logger.info('Returning test access token');
-            return appConfig.getTestAccessToken();
-        }
         if (!this.initialized) this.init();
 
         if (!this.accessToken || this.isTokenExpired(this.accessToken)) {

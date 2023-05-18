@@ -37,7 +37,7 @@ async function main(args) {
             logger.error(payload);
         } else if (!adminPageUri || !projectExcelPath) {
             payload = 'Required data is not available to proceed with FG Promote action.';
-            updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED_WITH_ERROR, payload, '', PROMOTE_ACTION);
+            updateStatusToStateLib(projectRoot, PROJECT_STATUS.FAILED, payload, '', PROMOTE_ACTION);
             logger.error(payload);
         } else {
             const storeValue = await getStatusFromStateLib(projectRoot);
@@ -61,7 +61,7 @@ async function main(args) {
                         body: { Success: result },
                     };
                 }).catch((err) => {
-                    updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED_WITH_ERROR, `Failed to invoke actions ${err.message}`, undefined, PROMOTE_ACTION);
+                    updateStatusToStateLib(projectRoot, PROJECT_STATUS.FAILED, `Failed to invoke actions ${err.message}`, undefined, PROMOTE_ACTION);
                     logger.error('failed to invoke actions', err);
                     return {
                         code: 500,
@@ -76,7 +76,7 @@ async function main(args) {
         }
     } catch (err) {
         logger.error(err);
-        updateStatusToStateLib(projectRoot, PROJECT_STATUS.COMPLETED_WITH_ERROR, `Failed to invoke actions ${err.message}`, undefined, PROMOTE_ACTION);
+        updateStatusToStateLib(projectRoot, PROJECT_STATUS.FAILED, `Failed to invoke actions ${err.message}`, undefined, PROMOTE_ACTION);
         payload = err;
     }
 

@@ -78,7 +78,7 @@ async function getUserDetails(accessToken) {
         logger.info(JSON.stringify(error));
     }
     // Return null after verifications are done
-    return null;
+    return {};
 }
 
 async function isAuthorizedUser(accessToken) {

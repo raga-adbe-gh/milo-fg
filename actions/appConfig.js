@@ -41,6 +41,15 @@ class AppConfig {
         return this.configMap;
     }
 
+    getMsalConfig() {
+        const {
+            clientId, tenantId, certPassword, pvtKey, certThumbprint,
+        } = this.configMap;
+        return {
+            clientId, tenantId, certPassword, pvtKey, certThumbprint,
+        };
+    }
+
     extractPrivateKey() {
         if (!this.configMap.certKey) return;
         const decodedKey = Buffer.from(

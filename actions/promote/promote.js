@@ -22,13 +22,14 @@ const {
     getAioLogger, updateStatusToStateLib, getStatusFromStateLib, PROMOTE_ACTION
 } = require('../utils');
 const appConfig = require('../appConfig');
+const { isAuthorizedUser } = require('../sharepoint');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
     const logger = getAioLogger();
     let payload;
     const {
-        adminPageUri, projectExcelPath, projectRoot
+        spToken, adminPageUri, projectExcelPath, projectRoot
     } = args;
     appConfig.setAppConfig(args);
     try {
@@ -41,7 +42,11 @@ async function main(args) {
             logger.error(payload);
         } else {
             const storeValue = await getStatusFromStateLib(projectRoot);
-            if (!appConfig.getSkipInProgressCheck() && storeValue?.action?.status === PROJECT_STATUS.IN_PROGRESS) {
+            const accountDtls = await isAuthorizedUser(spToken);
+            if (!accountDtls) {
+                payload = 'Could not determine the user.';
+                logger.error(payload);
+            } else if (!appConfig.getSkipInProgressCheck() && storeValue?.action?.status === PROJECT_STATUS.IN_PROGRESS) {
                 payload = 'A promote action project is already in progress.';
                 logger.error(payload);
             } else {

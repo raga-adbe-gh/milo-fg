@@ -77,8 +77,7 @@ async function getUserDetails(accessToken) {
         logger.info('Unable to fetch User Info');
         logger.info(JSON.stringify(error));
     }
-    // Return null after verifications are done
-    return {};
+    return null;
 }
 
 async function isAuthorizedUser(accessToken) {

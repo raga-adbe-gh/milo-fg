@@ -56,7 +56,7 @@ class SharepointAuth {
                 authority: `https://login.microsoftonline.com/${msalConfig.tenantId}`,
                 knownAuthorities: ['login.microsoftonline.com'],
                 clientCertificate: {
-                    privateKey: msalConfig.certKey,
+                    privateKey: msalConfig.pvtKey,
                     thumbprint: msalConfig.certThumbprint,
                 },
             },

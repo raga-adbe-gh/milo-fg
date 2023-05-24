@@ -19,9 +19,9 @@ const { Headers } = require('node-fetch');
 const fetch = require('node-fetch');
 const { getConfig } = require('./config');
 const { getAioLogger } = require('./utils');
+const appConfig = require('./appConfig');
 const sharepointAuth = require('./sharepointAuth');
 
-const GRAPH_API = 'https://graph.microsoft.com/v1.0';
 const APP_USER_AGENT = 'ISV|Adobe|MiloFloodgate/0.1.0';
 const BATCH_REQUEST_LIMIT = 20;
 const BATCH_DELAY_TIME = 200;
@@ -56,15 +56,15 @@ async function getAuthorizedRequestOption({ body = null, json = true, method = '
     return options;
 }
 
-async function getUserDetails(accessToken) {
+async function getDriveRoot(accessToken) {
     const logger = getAioLogger();
     try {
         const headers = new Headers();
         headers.append('Authorization', `Bearer ${accessToken}`);
         headers.append('User-Agent', APP_USER_AGENT);
         headers.append('Accept', 'application/json');
-
-        const response = await fetchWithRetry(`${GRAPH_API}/me`, { headers });
+        const fgSite = appConfig.getFgSite();
+        const response = await fetchWithRetry(`${fgSite}/drive/root`, { headers });
 
         if (response?.ok) {
             const user = await response.json();
@@ -81,7 +81,7 @@ async function getUserDetails(accessToken) {
 }
 
 async function isAuthorizedUser(accessToken) {
-    return getUserDetails(accessToken);
+    return getDriveRoot(accessToken);
 }
 
 async function getFileData(adminPageUri, filePath, isFloodgate) {
@@ -360,7 +360,6 @@ function logHeaders(response) {
 module.exports = {
     getAuthorizedRequestOption,
     isAuthorizedUser,
-    getUserDetails,
     getFilesData,
     getFile,
     getFileUsingDownloadUrl,

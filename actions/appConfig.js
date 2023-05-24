@@ -50,6 +50,10 @@ class AppConfig {
         };
     }
 
+    getFgSite() {
+        return this.configMap.fgSite;
+    }
+
     extractPrivateKey() {
         if (!this.configMap.certKey) return;
         const decodedKey = Buffer.from(

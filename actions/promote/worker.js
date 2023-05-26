@@ -21,7 +21,7 @@ const {
     getAuthorizedRequestOption, saveFile, updateExcelTable, getFileUsingDownloadUrl, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, simulatePreviewPublish, handleExtension, updateStatusToStateLib, PROMOTE_ACTION, delay, PREVIEW, PUBLISH
+    getAioLogger, simulatePreviewPublish, handleExtension, updateStatusToStateLib, PROMOTE_ACTION, delay, PREVIEW, PUBLISH, logMemUsage
 } = require('../utils');
 const appConfig = require('../appConfig');
 
@@ -31,6 +31,7 @@ const MAX_CHILDREN = 1000;
 
 async function main(params) {
     const logger = getAioLogger();
+    logMemUsage();
     let payload;
     const {
         adminPageUri, projectExcelPath, fgRootFolder, doPublish
@@ -233,7 +234,7 @@ async function promoteFloodgatedFiles(adminPageUri, projectExcelPath, doPublish)
         payload = 'Promoted floodgate tree successfully.';
         logger.info('Promoted floodgate tree successfully.');
     }
-
+    logMemUsage();
     payload = 'All tasks for Floodgate Promote completed';
     return payload;
 }

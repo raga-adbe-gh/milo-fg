@@ -234,7 +234,7 @@ async function createSessionAndUploadFile(sp, file, dest, filename, isFloodgate)
  * The method gets the list of files, extracts the parent path, extracts uniq paths,
  * filters common parents urls
  * e.g.. [/a/b/one.txt, /a/b/two.txt, /a/c/three.txt, /a/c/d/three.txt]
- * Folders to create woouold be [/a/b, /a/c/d]
+ * Folders to create would be [/a/b, /a/c/d]
  * This triggers async and waits for batch to complete. These are small batches so should be fast.
  * The $batch can be used in future to submit only one URL
  * @param {*} adminPageUri AdminPageURI for getting configs

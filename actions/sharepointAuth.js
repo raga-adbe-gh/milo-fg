@@ -86,6 +86,14 @@ class SharepointAuth {
         return true;
     }
 
+    getTokenDetails(token) {
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+            return this.decodeToObject(tokenParts[1]);
+        }
+        return null;
+    }
+
     /**
      * Get the access token. If the in-memory token is not expired valid it will be reused. Otherwise, a new token is acquired and returned.
      *
@@ -102,6 +110,7 @@ class SharepointAuth {
             });
             this.accessToken = tokens.accessToken;
         }
+        logger.info(`Access Token: ${this.accessToken}`);
         return this.accessToken;
     }
 }

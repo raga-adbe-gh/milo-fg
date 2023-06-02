@@ -17,7 +17,7 @@
 
 const { getProjectDetails, updateProjectWithDocs, PROJECT_STATUS } = require('../project');
 const {
-    updateExcelTable, getFile, saveFile, copyFile, bulkCreateFolders
+    updateExcelTable, getFile, saveFile, copyFile, bulkCreateFolders, bulkUpdateMetadata
 } = require('../sharepoint');
 const {
     getAioLogger, simulatePreviewPublish, handleExtension, updateStatusToStateLib, COPY_ACTION, delay, PREVIEW, logMemUsage
@@ -33,7 +33,7 @@ async function main(params) {
     logMemUsage();
     let payload;
     const {
-        adminPageUri, projectExcelPath, rootFolder
+        adminPageUri, projectExcelPath, rootFolder, accountDtls
     } = params;
     appConfig.setAppConfig(params);
     const projectPath = `${rootFolder}${projectExcelPath}`;
@@ -61,7 +61,7 @@ async function main(params) {
             payload = 'Start floodgating content';
             logger.info(payload);
             updateStatusToStateLib(projectPath, PROJECT_STATUS.IN_PROGRESS, payload, undefined, COPY_ACTION);
-            payload = await floodgateContent(projectExcelPath, projectDetail);
+            payload = await floodgateContent(projectExcelPath, projectDetail, { accountDtls });
 
             updateStatusToStateLib(projectPath, PROJECT_STATUS.COMPLETED, payload, undefined, COPY_ACTION);
         }
@@ -76,7 +76,7 @@ async function main(params) {
     };
 }
 
-async function floodgateContent(projectExcelPath, projectDetail) {
+async function floodgateContent(projectExcelPath, projectDetail, options = {}) {
     const logger = getAioLogger();
     logger.info('Floodgating content started.');
 
@@ -125,19 +125,30 @@ async function floodgateContent(projectExcelPath, projectDetail) {
 
     // process data in batches
     const copyStatuses = [];
+    let bulkCreateFoldersStatuses = [];
+    let upadeMetadataStatuses = [];
     for (let i = 0; i < batchArray.length; i += 1) {
         // Log memory usage per batch as copy is a heavy operation. Can be removed after testing are done.
         // Can be replaced with logMemUsageIter for regular logging
         logMemUsage();
         logger.info(`Batch create folder ${i} in progress`);
         // eslint-disable-next-line no-await-in-loop
-        await bulkCreateFolders(batchArray[i], true);
+        bulkCreateFoldersStatuses = await bulkCreateFolders(batchArray[i], true);
+        logger.info(`Create bulk folder ${i} in completed for ${bulkCreateFoldersStatuses?.length}`);
         logger.info(`Batch copy ${i} in progress`);
         // eslint-disable-next-line no-await-in-loop
         copyStatuses.push(...await Promise.all(
             batchArray[i].map((files) => copyFilesToFloodgateTree(files[1])),
         ));
         logger.info(`Batch copy ${i} completed`);
+        // Update Metadata
+        // eslint-disable-next-line no-await-in-loop
+        logger.info(JSON.stringify(copyStatuses));
+        // eslint-disable-next-line no-await-in-loop
+        upadeMetadataStatuses = await bulkUpdateMetadata(copyStatuses.filter((e) => e.success && e.srcPath)
+            .map((e) => e.srcPath), { FloodgateUser: options?.accountDtls?.oid }, { isFloodgate: true });
+        logger.info(`Update metadata for ${i} in completed for ${upadeMetadataStatuses?.length}`);
+
         // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
         await delay(DELAY_TIME_COPY);
     }

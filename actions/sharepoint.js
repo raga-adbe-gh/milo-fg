@@ -21,6 +21,7 @@ const { getConfig } = require('./config');
 const { getAioLogger } = require('./utils');
 const appConfig = require('./appConfig');
 const sharepointAuth = require('./sharepointAuth');
+const { async } = require('regenerator-runtime');
 
 const APP_USER_AGENT = 'ISV|Adobe|MiloFloodgate/0.1.0';
 const BATCH_REQUEST_LIMIT = 20;
@@ -64,13 +65,14 @@ async function getDriveRoot(accessToken) {
         headers.append('User-Agent', APP_USER_AGENT);
         headers.append('Accept', 'application/json');
         const fgSite = appConfig.getFgSite();
+        logger.info(`--> ${fgSite}`);
         const response = await fetchWithRetry(`${fgSite}/drive/root`, { headers });
 
         if (response?.ok) {
             const driveDtls = await response.json();
             return driveDtls;
         }
-        logger.info(`Unable to get User details: ${response?.status}`);
+        logger.info(`Unable to get drive details: ${response?.status}`);
     } catch (error) {
         logger.info('Unable to fetch User Info');
         logger.info(JSON.stringify(error));
@@ -79,7 +81,8 @@ async function getDriveRoot(accessToken) {
 }
 
 async function isAuthorizedUser(accessToken) {
-    return getDriveRoot(accessToken);
+    const dtls = getDriveRoot(accessToken);
+    return dtls ? sharepointAuth.getTokenDetails(accessToken) : dtls;
 }
 
 async function getFileData(filePath, isFloodgate) {
@@ -335,6 +338,54 @@ async function saveFile(file, dest, isFloodgate) {
     return { success: false, path: dest };
 }
 
+async function updateMetadata(filePath, fields, options = { isFloodgate: false }) {
+    const defResp = { success: true };
+    const logger = getAioLogger();
+    try {
+        if (!filePath || !fields) return defResp;
+        const { sp } = await getConfig();
+        const metaUpdUrl = options.isFloodgate ? sp.api.file.get.fgBaseURI : sp.api.file.get.baseURI;
+        const fetchOptions = await getAuthorizedRequestOption({ body: fields, method: 'PATCH' });
+        logger.info(`${metaUpdUrl}${filePath}`);
+        logger.info(JSON.stringify(fetchOptions));
+        const metaUpdateStatus = await fetchWithRetry(`${metaUpdUrl}${filePath}`, fetchOptions);
+        if (metaUpdateStatus?.ok) {
+            return metaUpdateStatus.json();
+        }
+        logger.info(JSON.stringify(await metaUpdateStatus?.json()));
+    } catch (error) {
+        logger.error(error?.stack);
+        return { success: false, errorMsg: error.message };
+    }
+    return { success: false };
+}
+
+/**
+ * This method update the meta data to floodgate copied or pomoted files.
+ * @param {*} copyFileStatuses Copied files with status
+ * @param {*} fields Metadata fields e.g. {'FloodgateUser': {'id':...}}
+ * @param {*} options Additional options like floodate or not
+ * @returns metadata update statuses
+ */
+async function bulkUpdateMetadata(filePaths, fields, options = { isFloodgate: false }) {
+    const logger = getAioLogger();
+    const updateMetadataSatuses = [];
+    try {
+        logger.info(`bulkUpdateMetadata started ${filePaths?.length} and ${fields}`);
+        if (!filePaths || !filePaths.length || !fields) return updateMetadataSatuses;
+        const promises = filePaths.map((e) => updateMetadata(e, fields, options));
+        logger.info('Got bulkUpdateMetadata promises and waiting....');
+        updateMetadataSatuses.push(...await Promise.all(promises));
+        logger.info(`bulkUpdateMetadata completed ${updateMetadataSatuses?.length}`);
+        logger.info(`bulkUpdateMetadata statuses ${JSON.stringify(updateMetadataSatuses)}`);
+    } catch (error) {
+        logger.info('Error while creating folders');
+        logger.info(error?.stack);
+    }
+    logger.info(`bulkUpdateMetadata returning ${updateMetadataSatuses?.length}`);
+    return updateMetadataSatuses;
+}
+
 async function updateExcelTable(excelPath, tableName, values) {
     const { sp } = await getConfig();
 
@@ -415,4 +466,5 @@ module.exports = {
     getFolderFromPath,
     getFileNameFromPath,
     bulkCreateFolders,
+    bulkUpdateMetadata,
 };

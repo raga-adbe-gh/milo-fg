@@ -62,7 +62,7 @@ async function main(args) {
                     name: 'milo-fg/copy-worker',
                     blocking: false, // this is the flag that instructs to execute the worker asynchronous
                     result: false,
-                    params: args
+                    params: { ...args, accountDtls: {oid: accountDtls?.oid} }
                 }).then(async (result) => {
                     logger.info(result);
                     //  attaching activation id to the status

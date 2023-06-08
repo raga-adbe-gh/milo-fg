@@ -16,15 +16,15 @@
 ************************************************************************* */
 
 const { getConfig } = require('../config');
-const { PROJECT_STATUS } = require('../project');
 const {
     getAuthorizedRequestOption, saveFile, updateExcelTable, getFileUsingDownloadUrl, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, simulatePreviewPublish, handleExtension, updateStatusToStateLib, PROMOTE_ACTION, delay, PREVIEW, PUBLISH, logMemUsage
+    getAioLogger, simulatePreviewPublish, handleExtension, delay, logMemUsage, PREVIEW, PUBLISH, PROMOTE_ACTION
 } = require('../utils');
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
+const FgStatus = require('../fgStatus');
 
 const BATCH_REQUEST_PROMOTE = 20;
 const DELAY_TIME_PROMOTE = 3000;
@@ -39,6 +39,7 @@ async function main(params) {
         adminPageUri, projectExcelPath, fgRootFolder, doPublish
     } = params;
     appConfig.setAppConfig(params);
+    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder });
 
     try {
         if (!fgRootFolder) {
@@ -46,18 +47,30 @@ async function main(params) {
             logger.error(payload);
         } else if (!adminPageUri || !projectExcelPath) {
             payload = 'Required data is not available to proceed with FG Promote action.';
-            updateStatusToStateLib(fgRootFolder, PROJECT_STATUS.FAILED, payload, undefined, undefined, new Date(), PROMOTE_ACTION);
+            fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.FAILED,
+                statusMessage: payload
+            });
             logger.error(payload);
         } else {
             urlInfo.setUrlInfo(adminPageUri);
             payload = 'Getting all files to be promoted.';
-            updateStatusToStateLib(fgRootFolder, PROJECT_STATUS.IN_PROGRESS, payload, undefined, undefined, undefined, PROMOTE_ACTION);
+            fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+                statusMessage: payload
+            });
             logger.info(payload);
             payload = await promoteFloodgatedFiles(projectExcelPath, doPublish);
-            updateStatusToStateLib(fgRootFolder, PROJECT_STATUS.COMPLETED, payload, undefined, undefined, new Date(), PROMOTE_ACTION);
+            fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.COMPLETED,
+                statusMessage: payload
+            });
         }
     } catch (err) {
-        updateStatusToStateLib(fgRootFolder, PROJECT_STATUS.COMPLETED_WITH_ERROR, err.message, undefined, undefined, new Date(), PROMOTE_ACTION);
+        fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
+            statusMessage: err.message,
+        });
         logger.error(err);
         payload = err;
     }

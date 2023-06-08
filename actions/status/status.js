@@ -16,7 +16,8 @@
 ************************************************************************* */
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { getAioLogger, getStatusFromStateLib } = require('../utils');
+const { getAioLogger } = require('../utils');
+const FgStatus = require('../fgStatus');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
@@ -34,8 +35,10 @@ async function main(args) {
                 statusKey = `${projectRoot}${projectExcelPath}`;
             }
             logger.info(`Status key -- ${statusKey}`);
-            payload = await getStatusFromStateLib(statusKey);
-            logger.info(`Status here -- ${payload}`);
+            const fgStatus = new FgStatus({ statusKey });
+            payload = await fgStatus.getStatusFromStateLib();
+
+            logger.info(`Status here -- ${JSON.stringify(payload)}`);
         }
     } catch (err) {
         logger.error(err);

@@ -15,15 +15,16 @@
 * from Adobe.
 ************************************************************************* */
 
-const { getProjectDetails, updateProjectWithDocs, PROJECT_STATUS } = require('../project');
+const { getProjectDetails, updateProjectWithDocs } = require('../project');
 const {
     updateExcelTable, getFile, saveFile, copyFile, bulkCreateFolders
 } = require('../sharepoint');
 const {
-    getAioLogger, simulatePreviewPublish, handleExtension, updateStatusToStateLib, COPY_ACTION, delay, PREVIEW, logMemUsage
+    getAioLogger, simulatePreviewPublish, handleExtension, delay, PREVIEW, logMemUsage, COPY_ACTION
 } = require('../utils');
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
+const FgStatus = require('../fgStatus');
 
 const BATCH_REQUEST_COPY = 20;
 const DELAY_TIME_COPY = 3000;
@@ -38,36 +39,55 @@ async function main(params) {
     } = params;
     appConfig.setAppConfig(params);
     const projectPath = `${rootFolder}${projectExcelPath}`;
+    const fgStatus = new FgStatus({ action: COPY_ACTION, statusKey: projectPath });
     try {
         if (!rootFolder || !projectExcelPath) {
             payload = 'Could not determine the project path. Try reloading the page and trigger the action again.';
             logger.error(payload);
         } else if (!adminPageUri) {
             payload = 'Required data is not available to proceed with FG Copy action.';
-            updateStatusToStateLib(projectPath, PROJECT_STATUS.FAILED, payload, undefined, undefined, new Date(), COPY_ACTION);
+            fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.FAILED,
+                statusMessage: payload
+            });
             logger.error(payload);
         } else {
             urlInfo.setUrlInfo(adminPageUri);
             payload = 'Getting all files to be floodgated from the project excel file';
             logger.info(payload);
-            updateStatusToStateLib(projectPath, PROJECT_STATUS.IN_PROGRESS, payload, undefined, undefined, undefined, COPY_ACTION);
+            fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+                statusMessage: payload
+            });
 
             const projectDetail = await getProjectDetails(projectExcelPath);
 
             payload = 'Injecting sharepoint data';
             logger.info(payload);
-            updateStatusToStateLib(projectPath, PROJECT_STATUS.IN_PROGRESS, payload, undefined, undefined, undefined, COPY_ACTION);
+            fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+                statusMessage: payload
+            });
             await updateProjectWithDocs(projectDetail);
 
             payload = 'Start floodgating content';
             logger.info(payload);
-            updateStatusToStateLib(projectPath, PROJECT_STATUS.IN_PROGRESS, payload, undefined, undefined, undefined, COPY_ACTION);
+            fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+                statusMessage: payload
+            });
             payload = await floodgateContent(projectExcelPath, projectDetail);
 
-            updateStatusToStateLib(projectPath, PROJECT_STATUS.COMPLETED, payload, undefined, undefined, new Date(), COPY_ACTION);
+            fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.COMPLETED,
+                statusMessage: payload
+            });
         }
     } catch (err) {
-        updateStatusToStateLib(projectPath, PROJECT_STATUS.COMPLETED_WITH_ERROR, err.message, undefined, undefined, new Date(), COPY_ACTION);
+        fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
+            statusMessage: err.message
+        });
         logger.error(err);
         payload = err;
     }

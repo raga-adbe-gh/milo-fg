@@ -16,22 +16,10 @@
 ************************************************************************* */
 
 const AioLogger = require('@adobe/aio-lib-core-logging');
-const stateLib = require('@adobe/aio-lib-state');
 const fetch = require('node-fetch');
-const crypto = require('crypto');
 const events = require('events');
 const urlInfo = require('./urlInfo');
 
-const STATUS_FORMAT = {
-    action: {
-        type: '',
-        status: '',
-        message: '',
-        activationId: '',
-        startTime: '',
-        endTime: ''
-    }
-};
 const COPY_ACTION = 'copyAction';
 const PROMOTE_ACTION = 'promoteAction';
 const PREVIEW = 'preview';
@@ -94,85 +82,6 @@ function getDocPathFromUrl(url) {
     return `${path}.docx`;
 }
 
-async function updateStatusToStateLib(storeKey, status, statusMessage, activationId, startTime, endTime, action) {
-    const logger = getAioLogger();
-    let storeStatus = STATUS_FORMAT;
-    try {
-        await getStatusFromStateLib(storeKey).then((result) => {
-            if (result?.action) {
-                storeStatus = result;
-                if (status) {
-                    storeStatus.action.status = status;
-                }
-                if (statusMessage) {
-                    storeStatus.action.message = statusMessage;
-                }
-                if (activationId) {
-                    storeStatus.action.activationId = activationId;
-                }
-                if (startTime) {
-                    storeStatus.action.startTime = startTime;
-                }
-                if (endTime) {
-                    storeStatus.action.endTime = endTime;
-                }
-                logger.info(`Updating status to state store  -- value :   ${JSON.stringify(storeStatus)}`);
-                updateStateStatus(storeKey, storeStatus);
-            } else {
-                logger.info(`Updating status to state store  -- value :   ${JSON.stringify(storeStatus)}`);
-                storeStatus.action.type = action;
-                storeStatus.action.status = status;
-                storeStatus.action.message = statusMessage;
-                storeStatus.action.activationId = activationId;
-                storeStatus.action.startTime = startTime;
-                storeStatus.action.endTime = endTime;
-                updateStateStatus(storeKey, storeStatus);
-            }
-        });
-    } catch (err) {
-        logger.error(`Error creating state store ${err}`);
-    }
-    return storeStatus;
-}
-
-async function updateStateStatus(storeKey, storeValue) {
-    const logger = getAioLogger();
-    const hash = crypto.createHash('md5').update(storeKey).digest('hex');
-    logger.info(`Adding status to aio state lib with hash -- ${hash} - ${JSON.stringify(storeValue)}`);
-    // get the hash value if its available
-    try {
-        const state = await stateLib.init();
-        // save it
-        await state.put(hash, storeValue, {
-            // 30day expiration...
-            ttl: 2592000
-        });
-    } catch (err) {
-        logger.error(`Error creating state store ${err}`);
-    }
-}
-
-async function getStatusFromStateLib(storeKey) {
-    const logger = getAioLogger();
-    let status;
-    try {
-        // md5 hash of the config file
-        const hash = crypto.createHash('md5').update(storeKey).digest('hex');
-        logger.info(`Project excel path and hash value -- ${storeKey} and ${hash}`);
-        // init when running in an Adobe I/O Runtime action (OpenWhisk) (uses env vars __OW_API_KEY and __OW_NAMESPACE automatically)
-        const state = await stateLib.init();
-        // getting activation id data from io state
-        const res = await state.get(hash); // res = { value, expiration }
-        if (res) {
-            status = res.value;
-            logger.info(`Status from the store ${JSON.stringify(status)}`);
-        }
-    } catch (err) {
-        logger.error(`Error getting data from state store ${err}`);
-    }
-    return status;
-}
-
 async function delay(milliseconds = 100) {
     // eslint-disable-next-line no-promise-executor-return
     await new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -218,8 +127,6 @@ module.exports = {
     simulatePreviewPublish,
     handleExtension,
     getDocPathFromUrl,
-    updateStatusToStateLib,
-    getStatusFromStateLib,
     delay,
     COPY_ACTION,
     PROMOTE_ACTION,

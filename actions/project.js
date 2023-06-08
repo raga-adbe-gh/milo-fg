@@ -22,15 +22,6 @@ const {
     getAioLogger, handleExtension, getDocPathFromUrl
 } = require('./utils');
 
-const PROJECT_STATUS = {
-    STARTED: 'STARTED',
-    NOT_STARTED: 'NOT STARTED',
-    COMPLETED: 'COMPLETED',
-    COMPLETED_WITH_ERROR: 'COMPLETED WITH ERROR',
-    IN_PROGRESS: 'IN PROGRESS',
-    FAILED: 'FAILED'
-};
-
 async function getProjectDetails(projectExcelPath) {
     const logger = getAioLogger();
     logger.info('Getting paths from project excel worksheet');
@@ -106,11 +97,7 @@ async function updateProjectWithDocs(projectDetail) {
     injectSharepointData(projectDetail.urls, filePaths, docPaths, spFiles);
 }
 
-const projectInProgress = (status) => [PROJECT_STATUS.IN_PROGRESS, PROJECT_STATUS.STARTED].includes(status);
-
 module.exports = {
     getProjectDetails,
     updateProjectWithDocs,
-    projectInProgress,
-    PROJECT_STATUS
 };

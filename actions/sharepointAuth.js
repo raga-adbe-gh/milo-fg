@@ -76,14 +76,27 @@ class SharepointAuth {
     }
 
     isTokenExpired(token) {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
+        const tokenParts = token?.split('.');
+        if (tokenParts?.length === 3) {
             const data = this.decodeToObject(tokenParts[1]);
             if (data && data.exp) {
                 return Math.floor(Date.now() / 1000) > data.exp - 10;
             }
         }
         return true;
+    }
+
+    getTokenDetails(token) {
+        const tokenParts = token?.split('.');
+        if (tokenParts?.length === 3) {
+            return this.decodeToObject(tokenParts[1]);
+        }
+        return null;
+    }
+
+    getUserDetails(token) {
+        const dtls = this.getTokenDetails(token);
+        return { oid: dtls?.oid };
     }
 
     /**

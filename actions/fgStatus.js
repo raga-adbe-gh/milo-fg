@@ -43,6 +43,7 @@ class FgStatus {
      */
     storeStatus = {
         action: {
+            userDetails: {},
             type: '',
             status: '',
             message: '',
@@ -55,10 +56,11 @@ class FgStatus {
     /**
      * Constructor with initial setup
      * @param {*} options statusKey is the key to be used to store
-     * and action is the type of FG Action like copy or promote
+     * and actionType is the type of FG Action like copy or promote
      */
-    constructor({ statusKey, action }) {
-        this.storeStatus.action.type = action || '';
+    constructor({ action, statusKey, userDetails }) {
+        this.userDetails = userDetails;
+        this.action = action || '';
         this.storeKey = statusKey || FG_KEY;
         this.logger = getAioLogger();
     }
@@ -112,19 +114,21 @@ class FgStatus {
                         this.storeStatus.action.endTime = endTime;
                     }
                 } else {
-                    this.storeStatus.action.type = action;
                     this.storeStatus.action.status = status;
                     this.storeStatus.action.message = statusMessage;
                     this.storeStatus.action.activationId = activationId;
                     this.storeStatus.action.startTime = startTime || this.storeStatus.action.startTime;
                     this.storeStatus.action.endTime = startTime || this.storeStatus.action.endTime;
                 }
+                this.storeStatus.action.type = action || this.action || this.storeStatus.action.type;
+                this.storeStatus.action.userDetails = this.userDetails || this.storeStatus.action.userDetails;
+
                 // Set start and end based on status
                 if (status && FgStatus.PROJECT_STATUS.STARTED === status) {
-                    this.storeStatus.action.startTime = new Date();
+                    this.storeStatus.action.startTime = startTime || new Date();
                 }
                 if (FgStatus.isFinished(this.storeStatus.action.status)) {
-                    this.storeStatus.action.endTime = new Date();
+                    this.storeStatus.action.endTime = endTime || new Date();
                     if (!this.storeStatus.action.startTime) {
                         this.storeStatus.action.startTime = this.storeStatus.action.endTime;
                     }

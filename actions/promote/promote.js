@@ -22,6 +22,7 @@ const {
 } = require('../utils');
 const appConfig = require('../appConfig');
 const { isAuthorizedUser } = require('../sharepoint');
+const sharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
 
 // This returns the activation ID of the action that it called
@@ -32,7 +33,10 @@ async function main(args) {
         spToken, adminPageUri, projectExcelPath, fgRootFolder
     } = args;
     appConfig.setAppConfig(args);
-    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder });
+    const userDetails = sharepointAuth.getUserDetails(spToken);
+    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder, userDetails });
+    logger.info(`Promote action for ${fgRootFolder} triggered by ${JSON.stringify(userDetails)}`);
+
     try {
         if (!fgRootFolder) {
             payload = 'Required data is not available to proceed with FG Promote action.';

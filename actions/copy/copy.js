@@ -22,6 +22,7 @@ const {
 } = require('../utils');
 const appConfig = require('../appConfig');
 const { isAuthorizedUser } = require('../sharepoint');
+const sharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
 
 // This returns the activation ID of the action that it called
@@ -33,7 +34,9 @@ async function main(args) {
     } = args;
     appConfig.setAppConfig(args);
     const projectPath = `${rootFolder}${projectExcelPath}`;
-    const fgStatus = new FgStatus({ action: COPY_ACTION, statusKey: projectPath });
+    const userDetails = sharepointAuth.getUserDetails(spToken);
+    const fgStatus = new FgStatus({ action: COPY_ACTION, statusKey: projectPath, userDetails });
+    logger.info(`Copy action for ${projectPath} triggered by ${JSON.stringify(userDetails)}`);
     try {
         if (!rootFolder || !projectExcelPath) {
             payload = 'Could not determine the project path. Try reloading the page and trigger the action again.';
@@ -76,7 +79,7 @@ async function main(args) {
                     //  attaching activation id to the status
                     payload = await fgStatus.updateStatusToStateLib({
                         status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                        activatioonId: result.activationId
+                        activationId: result.activationId
                     });
                     return {
                         code: 200,

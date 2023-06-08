@@ -43,7 +43,7 @@ class FgStatus {
      */
     storeStatus = {
         action: {
-            userDetails: {},
+            lastTriggeredBy: '',
             type: '',
             status: '',
             message: '',
@@ -59,7 +59,7 @@ class FgStatus {
      * and actionType is the type of FG Action like copy or promote
      */
     constructor({ action, statusKey, userDetails }) {
-        this.userDetails = userDetails;
+        this.lastTriggeredBy = userDetails?.oid;
         this.action = action || '';
         this.storeKey = statusKey || FG_KEY;
         this.logger = getAioLogger();
@@ -121,7 +121,8 @@ class FgStatus {
                     this.storeStatus.action.endTime = startTime || this.storeStatus.action.endTime;
                 }
                 this.storeStatus.action.type = action || this.action || this.storeStatus.action.type;
-                this.storeStatus.action.userDetails = this.userDetails || this.storeStatus.action.userDetails;
+                this.storeStatus.action.lastTriggeredBy = this.lastTriggeredBy ||
+                    this.storeStatus.action.lastTriggeredBy;
 
                 // Set start and end based on status
                 if (status && FgStatus.PROJECT_STATUS.STARTED === status) {

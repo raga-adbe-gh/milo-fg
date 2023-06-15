@@ -19,6 +19,9 @@ application:
           certPassword: $CERT_PASSWORD
           certKey: $CERT_KEY
           certThumbprint: $CERT_THUMB_PRINT
+          batchFilesPath: $BATCH_FILES_PATH
+          numBatchFiles: $NUM_BATCH_FILES
+          numBulkPerBatch: $NUM_BULK_PER_BATCH
         actions:
           copy:
             function: actions/copy/copy.js
@@ -41,6 +44,14 @@ application:
             runtime: nodejs:16
             inputs:
               LOG_LEVEL: debug
+          promote-batch:
+            function: actions/promote/promoteBatch.js
+            web: 'no'
+            runtime: nodejs:16
+            inputs:
+              LOG_LEVEL: debug
+            limits:
+              timeout: 1900000
           promote-worker:
             function: actions/promote/worker.js
             web: 'no'
@@ -49,7 +60,16 @@ application:
               LOG_LEVEL: debug
             limits:
               timeout: 3600000
-              memorySize: 2048
+              memorySize: 1024
+              concurrency: 5
+          promote-tracker:
+            function: actions/promote/tracker.js
+            web: 'no'
+            runtime: nodejs:16
+            inputs:
+              LOG_LEVEL: debug
+            limits:
+              timeout: 3600000
           status:
             function: actions/status/status.js
             web: 'yes'

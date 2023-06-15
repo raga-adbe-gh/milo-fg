@@ -76,12 +76,8 @@ async function main(params) {
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
                 statusMessage: payload
             });
-            payload = await floodgateContent(projectExcelPath, projectDetail);
 
-            fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.COMPLETED,
-                statusMessage: payload
-            });
+            payload = await floodgateContent(projectExcelPath, projectDetail, fgStatus);
         }
     } catch (err) {
         fgStatus.updateStatusToStateLib({
@@ -97,7 +93,7 @@ async function main(params) {
     };
 }
 
-async function floodgateContent(projectExcelPath, projectDetail) {
+async function floodgateContent(projectExcelPath, projectDetail, fgStatus) {
     const logger = getAioLogger();
     logger.info('Floodgating content started.');
 
@@ -135,7 +131,6 @@ async function floodgateContent(projectExcelPath, projectDetail) {
         return status;
     }
 
-    const startCopy = new Date();
     // create batches to process the data
     const contentToFloodgate = [...projectDetail.urls];
     const batchArray = [];
@@ -162,7 +157,6 @@ async function floodgateContent(projectExcelPath, projectDetail) {
         // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
         await delay(DELAY_TIME_COPY);
     }
-    const endCopy = new Date();
     logger.info('Completed floodgating documents listed in the project excel');
 
     logger.info('Previewing floodgated files... ');
@@ -183,20 +177,21 @@ async function floodgateContent(projectExcelPath, projectDetail) {
         .map((status) => status.srcPath || 'Path Info Not available');
     const failedPreviews = previewStatuses.filter((status) => !status.success)
         .map((status) => status.path);
+    const fgErrors = failedCopies.length > 0 || failedPreviews.length > 0;
+    const payload = fgErrors ?
+        'Error occurred when floodgating content. Check project excel sheet for additional information.' :
+        'All tasks for Floodgate Copy completed';
+    await fgStatus.updateStatusToStateLib({
+        status: fgErrors ? FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR : FgStatus.PROJECT_STATUS.COMPLETED,
+        statusMessage: payload
+    });
 
+    const { startTime: startCopy, endTime: endCopy } = fgStatus.getStartEndTime();
     const excelValues = [['COPY', startCopy, endCopy, failedCopies.join('\n'), failedPreviews.join('\n')]];
     await updateExcelTable(projectExcelPath, 'COPY_STATUS', excelValues);
     logger.info('Project excel file updated with copy status.');
 
-    if (failedCopies.length > 0 || failedPreviews.length > 0) {
-        const errorMessage = 'Error occurred when floodgating content. Check project excel sheet for additional information.';
-        logger.info(errorMessage);
-        throw new Error(errorMessage);
-    } else {
-        logger.info('Copied content to floodgate tree successfully.');
-    }
-
-    return 'All tasks for Floodgate Copy completed';
+    return payload;
 }
 
 exports.main = main;

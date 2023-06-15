@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 /* ************************************************************************
 * ADOBE CONFIDENTIAL
 * ___________________
@@ -15,20 +16,20 @@
 * from Adobe.
 ************************************************************************* */
 
+const filesLib = require('@adobe/aio-lib-files');
 const { getConfig } = require('../config');
 const {
-    getAuthorizedRequestOption, saveFile, updateExcelTable, getFileUsingDownloadUrl, fetchWithRetry
+    getAuthorizedRequestOption, saveFile, getFileUsingDownloadUrl, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, simulatePreviewPublish, handleExtension, delay, logMemUsage, PREVIEW, PUBLISH, PROMOTE_ACTION
+    getAioLogger, simulatePreviewPublish, handleExtension, delay, logMemUsage, PREVIEW, PUBLISH, PROMOTE_ACTION, PROMOTE_BATCH
 } = require('../utils');
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
+const BatchManager = require('../batchManager');
 
-const BATCH_REQUEST_PROMOTE = 20;
 const DELAY_TIME_PROMOTE = 3000;
-const MAX_CHILDREN = 1000;
 const ENABLE_HLX_PREVIEW = false;
 
 async function main(params) {
@@ -36,11 +37,15 @@ async function main(params) {
     logMemUsage();
     let payload;
     const {
-        adminPageUri, projectExcelPath, fgRootFolder, doPublish
+        adminPageUri, projectExcelPath, fgRootFolder, doPublish, batchNumber
     } = params;
     appConfig.setAppConfig(params);
-    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder });
-
+    // Tracker uses the below hence change here might need change in tracker as well.
+    const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, statusKey: `${fgRootFolder}~Batch_${batchNumber}` });
+    const filesSdk = await filesLib.init();
+    const batchManager = BatchManager.getBatchManagerForBatch({
+        action: PROMOTE_ACTION, filesSdk, batchNumber
+    });
     try {
         if (!fgRootFolder) {
             payload = 'Required data is not available to proceed with FG Promote action.';
@@ -60,7 +65,7 @@ async function main(params) {
                 statusMessage: payload
             });
             logger.info(payload);
-            payload = await promoteFloodgatedFiles(projectExcelPath, doPublish);
+            payload = await promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager);
             fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.COMPLETED,
                 statusMessage: payload
@@ -78,46 +83,6 @@ async function main(params) {
     return {
         body: payload,
     };
-}
-
-/**
- * Find all files in the pink tree to promote.
- */
-async function findAllFiles() {
-    const { sp } = await getConfig();
-    const baseURI = `${sp.api.excel.update.fgBaseURI}`;
-    const rootFolder = baseURI.split('/').pop();
-    const options = await getAuthorizedRequestOption({ method: 'GET' });
-
-    return findAllFloodgatedFiles(baseURI, options, rootFolder, [], ['']);
-}
-
-/**
- * Iteratively finds all files under a specified root folder.
- */
-async function findAllFloodgatedFiles(baseURI, options, rootFolder, fgFiles, fgFolders) {
-    while (fgFolders.length !== 0) {
-        const uri = `${baseURI}${fgFolders.shift()}:/children?$top=${MAX_CHILDREN}`;
-        // eslint-disable-next-line no-await-in-loop
-        const res = await fetchWithRetry(uri, options);
-        if (res.ok) {
-            // eslint-disable-next-line no-await-in-loop
-            const json = await res.json();
-            const driveItems = json.value;
-            driveItems?.forEach((item) => {
-                const itemPath = `${item.parentReference.path.replace(`/drive/root:/${rootFolder}`, '')}/${item.name}`;
-                if (item.folder) {
-                    // it is a folder
-                    fgFolders.push(itemPath);
-                } else {
-                    const downloadUrl = item['@microsoft.graph.downloadUrl'];
-                    fgFiles.push({ fileDownloadUrl: downloadUrl, filePath: itemPath });
-                }
-            });
-        }
-    }
-
-    return fgFiles;
 }
 
 /**
@@ -151,10 +116,11 @@ async function promoteCopy(srcPath, destinationFolder) {
     return copySuccess;
 }
 
-async function promoteFloodgatedFiles(projectExcelPath, doPublish) {
+async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager) {
     const logger = getAioLogger();
 
-    async function promoteFile(downloadUrl, filePath) {
+    async function promoteFile(batchItem) {
+        const { fileDownloadUrl, filePath } = batchItem.file;
         const status = { success: false };
         try {
             let promoteSuccess = false;
@@ -164,7 +130,7 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish) {
             if (copyFileStatus) {
                 promoteSuccess = true;
             } else {
-                const file = await getFileUsingDownloadUrl(downloadUrl);
+                const file = await getFileUsingDownloadUrl(fileDownloadUrl);
                 const saveStatus = await saveFile(file, filePath);
                 if (saveStatus.success) {
                     promoteSuccess = true;
@@ -173,21 +139,24 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish) {
             status.success = promoteSuccess;
             status.srcPath = filePath;
         } catch (error) {
-            const errorMessage = `Error occurred when trying to promote files to main content tree ${error.message}`;
+            const errorMessage = `Error promoting files ${fileDownloadUrl} at ${filePath} to main content tree ${error.message}`;
             logger.error(errorMessage);
             throw new Error(errorMessage, error);
         }
         return status;
     }
 
-    const startPromote = new Date();
     let payload = 'Getting all floodgated files to promote.';
-    // Iterate the floodgate tree and get all files to promote
-    const allFloodgatedFiles = await findAllFiles();
+    // Get the batch files using the batchmanager for the assigned batch and process them
+    const currentBatch = await batchManager.getCurrentBatch();
+    logger.info(`Obtained current batch ${currentBatch}`);
+    const allFloodgatedFiles = await currentBatch?.getFiles();
+    logger.info(`Files for the batch are ${JSON.stringify(allFloodgatedFiles)}`);
     // create batches to process the data
     const batchArray = [];
-    for (let i = 0; i < allFloodgatedFiles.length; i += BATCH_REQUEST_PROMOTE) {
-        const arrayChunk = allFloodgatedFiles.slice(i, i + BATCH_REQUEST_PROMOTE);
+    const { numBulkPerBatch } = appConfig.getBatchConfig();
+    for (let i = 0; i < allFloodgatedFiles.length; i += numBulkPerBatch) {
+        const arrayChunk = allFloodgatedFiles.slice(i, i + numBulkPerBatch);
         batchArray.push(arrayChunk);
     }
 
@@ -196,12 +165,12 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish) {
     for (let i = 0; i < batchArray.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
         promoteStatuses.push(...await Promise.all(
-            batchArray[i].map((file) => promoteFile(file.fileDownloadUrl, file.filePath)),
+            batchArray[i].map((bi) => promoteFile(bi))
         ));
         // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
         await delay(DELAY_TIME_PROMOTE);
     }
-    const endPromote = new Date();
+
     payload = 'Completed promoting all documents in the pink folder';
     logger.info(payload);
 
@@ -229,14 +198,11 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish) {
     const failedPublishes = publishStatuses.filter((status) => !status.success)
         .map((status) => status.path);
 
-    const excelValues = [['PROMOTE', startPromote, endPromote, failedPromotes.join('\n'), failedPreviews.join('\n'), failedPublishes.join('\n')]];
-    await updateExcelTable(projectExcelPath, 'PROMOTE_STATUS', excelValues);
-    payload = 'Project excel file updated with promote status.';
-    logger.info(payload);
-
     if (failedPromotes.length > 0 || failedPreviews.length > 0 || failedPublishes.length > 0) {
         payload = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
         logger.info(payload);
+        // Write the information to batch manifest
+        await batchManager.writeToCurrentBatchManifest({ failedPromotes, failedPreviews, failedPublishes });
         throw new Error(payload);
     } else {
         payload = 'Promoted floodgate tree successfully.';
@@ -254,7 +220,6 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish) {
                 const result = await simulatePreviewPublish(handleExtension(promoteStatuses[i].srcPath), operation, 1, false);
                 statuses.push(result);
             }
-            // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
             await delay();
         }
         return statuses;

@@ -49,7 +49,8 @@ class FgStatus {
             message: '',
             activationId: '',
             startTime: '',
-            endTime: ''
+            endTime: '',
+            batches: { actIds: [], tracker: null }
         }
     };
 
@@ -92,7 +93,7 @@ class FgStatus {
      * @returns progress object which is stored in the store
      */
     async updateStatusToStateLib({
-        status, statusMessage, activationId, action, startTime, endTime
+        status, statusMessage, activationId, action, startTime, endTime, batches
     }) {
         try {
             await this.getStatusFromStateLib().then((result) => {
@@ -118,8 +119,9 @@ class FgStatus {
                     this.storeStatus.action.message = statusMessage;
                     this.storeStatus.action.activationId = activationId;
                     this.storeStatus.action.startTime = startTime || this.storeStatus.action.startTime;
-                    this.storeStatus.action.endTime = startTime || this.storeStatus.action.endTime;
+                    this.storeStatus.action.endTime = endTime || this.storeStatus.action.endTime;
                 }
+                this.storeStatus.action.batches = batches || this.storeStatus.action.batches;
                 this.storeStatus.action.type = action || this.action || this.storeStatus.action.type;
                 this.storeStatus.action.lastTriggeredBy = this.lastTriggeredBy ||
                     this.storeStatus.action.lastTriggeredBy;
@@ -140,6 +142,12 @@ class FgStatus {
             this.logger.error(`Error creating state store ${err}`);
         }
         return this.storeStatus;
+    }
+
+    // Get the start end data from state
+    getStartEndTime() {
+        const { startTime, endTime } = this.storeStatus.action;
+        return { startTime, endTime };
     }
 
     /**

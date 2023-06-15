@@ -36,7 +36,6 @@ async function main(args) {
     const userDetails = sharepointAuth.getUserDetails(spToken);
     const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder, userDetails });
     logger.info(`Promote action for ${fgRootFolder} triggered by ${JSON.stringify(userDetails)}`);
-
     try {
         if (!fgRootFolder) {
             payload = 'Required data is not available to proceed with FG Promote action.';
@@ -51,14 +50,23 @@ async function main(args) {
         } else {
             const ow = openwhisk();
             const storeValue = await fgStatus.getStatusFromStateLib();
-            const actId = storeValue?.action?.activationId;
             const svStatus = storeValue?.action?.status;
+
+            // Get Activation Status
+            const fgInProg = FgStatus.isInProgress(svStatus);
+            const actId = storeValue?.action?.activationId;
+            const actInProg = await actInProgress(ow, actId, fgInProg);
+
+            // Get Tracker Status - If batch is completed then check tracker as well
+            const trackerActId = storeValue?.action?.batches?.activationId;
+            const trackerInProg = trackerActId && !actInProg ?
+                await actInProgress(ow, trackerActId, fgInProg) : actInProg;
+
             const accountDtls = await isAuthorizedUser(spToken);
             if (!accountDtls) {
                 payload = 'Could not determine the user.';
                 logger.error(payload);
-            } else if (!appConfig.getSkipInProgressCheck() &&
-                await actInProgress(ow, actId, FgStatus.isInProgress(svStatus))) {
+            } else if (!appConfig.getSkipInProgressCheck() && trackerInProg) {
                 payload = `A promote action project with activationid: ${storeValue?.action?.activationId} is already in progress. 
                 Not triggering this action. And the previous action can be retrieved by refreshing the console page`;
                 storeValue.action.status = FgStatus.PROJECT_STATUS.FAILED;
@@ -70,7 +78,7 @@ async function main(args) {
                     statusMessage: 'Triggering promote action'
                 });
                 return ow.actions.invoke({
-                    name: 'milo-fg/promote-worker',
+                    name: 'milo-fg/promote-batch',
                     blocking: false, // this is the flag that instructs to execute the worker asynchronous
                     result: false,
                     params: args

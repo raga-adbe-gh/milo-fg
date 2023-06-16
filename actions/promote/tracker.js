@@ -104,11 +104,11 @@ async function main(params) {
  * @param {*} fgRootFolder Floodgatet folder path
  * @param {*} actDtls Acttivation details of all batches
  */
-async function checkBatches(fgRootFolder, actDtls) {
-    let counter = 1;
-    while (await checkBatchesInProg(fgRootFolder, actDtls) && counter < MAX_CHECKS) {
-        delay(DELAY_IN_CHECKS);
+async function checkBatches(fgRootFolder, actDtls, ow) {
+    let counter = 0;
+    while (await checkBatchesInProg(fgRootFolder, actDtls, ow) && counter < MAX_CHECKS) {
         counter += 1;
+        await delay(DELAY_IN_CHECKS);
     }
 }
 
@@ -134,8 +134,8 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
                 return true;
             }
             return false;
-        }) || true;
-        if (batchInProg && await actInProgress(ow, actDtls[i], batchInProg)) return batchInProg;
+        });
+        if (batchInProg && await actInProgress(ow, actDtls[i].activationId, batchInProg)) return batchInProg;
     }
     return batchInProg;
 }

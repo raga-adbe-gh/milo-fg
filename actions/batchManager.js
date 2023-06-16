@@ -53,7 +53,7 @@ class BatchManager {
 
     /** Cleanup files for the current action */
     async cleanupFiles() {
-        await this.filesSdk.delete(this.filesSdkPath);
+        await this.filesSdk.delete(`${this.filesSdkPath}/`);
     }
 
     /**

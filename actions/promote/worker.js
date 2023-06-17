@@ -146,23 +146,25 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         return status;
     }
 
+    let i = 0;
     let payload = 'Getting all floodgated files to promote.';
     // Get the batch files using the batchmanager for the assigned batch and process them
     const currentBatch = await batchManager.getCurrentBatch();
     logger.info(`Obtained current batch ${currentBatch}`);
     const allFloodgatedFiles = await currentBatch?.getFiles();
-    logger.info(`Files for the batch are ${JSON.stringify(allFloodgatedFiles)}`);
+    logger.info(`Files for the batch are ${allFloodgatedFiles.length}`);
     // create batches to process the data
     const batchArray = [];
     const { numBulkPerBatch } = appConfig.getBatchConfig();
-    for (let i = 0; i < allFloodgatedFiles.length; i += numBulkPerBatch) {
+    for (i = 0; i < allFloodgatedFiles.length; i += numBulkPerBatch) {
         const arrayChunk = allFloodgatedFiles.slice(i, i + numBulkPerBatch);
         batchArray.push(arrayChunk);
     }
+    logger.info(`Batches batchArray creaed ${i}`);
 
     // process data in batches
     const promoteStatuses = [];
-    for (let i = 0; i < batchArray.length; i += 1) {
+    for (i = 0; i < batchArray.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
         promoteStatuses.push(...await Promise.all(
             batchArray[i].map((bi) => promoteFile(bi))
@@ -170,6 +172,7 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
         await delay(DELAY_TIME_PROMOTE);
     }
+    logger.info(`Batches batchArray index ${i}`);
 
     payload = 'Completed promoting all documents in the pink folder';
     logger.info(payload);

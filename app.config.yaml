@@ -52,6 +52,7 @@ application:
               LOG_LEVEL: debug
             limits:
               timeout: 1900000
+              memory: 1024
           promote-worker:
             function: actions/promote/worker.js
             web: 'no'

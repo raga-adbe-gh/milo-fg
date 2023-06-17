@@ -30,7 +30,7 @@ const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
 
 const logger = getAioLogger();
-const MAX_CHILDREN = 1000;
+const MAX_CHILDREN = 5000;
 
 /**
  * This is action interfacing method. The worker is split into two promoteBatch and worker.
@@ -154,6 +154,7 @@ async function createBatch(batchManager) {
     let payload = 'Getting all floodgated files to promote.';
     // Iterate the floodgate tree and get all files to promote
     const allFgFiles = await findAllFiles();
+    logger.info(`Total files to process ${allFgFiles?.length}`);
     // create batches to process the data
     for (let i = 0; i < allFgFiles.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop

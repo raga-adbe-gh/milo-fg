@@ -121,21 +121,21 @@ async function checkBatches(fgRootFolder, actDtls, ow) {
  */
 async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
     let fgStatus;
-    let batchNumber;
     let batchInProg = false;
     for (let i = 0; i < actDtls?.length && !batchInProg; i += 1) {
-        batchNumber = actDtls[i].batchNumber;
+        const { batchNumber } = actDtls[i];
         fgStatus = new FgStatus({
             action: `${PROMOTE_BATCH}_${batchNumber}`,
             statusKey: `${fgRootFolder}~Batch_${batchNumber}`
         });
         batchInProg = await fgStatus?.getStatusFromStateLib().then((result) => {
             if (result.action && FgStatus.isInProgress(result.action.status)) {
+                // logger.info(`${fgRootFolder}~Batch_${batchNumber} in progress!`);
                 return true;
             }
             return false;
         });
-        if (batchInProg && await actInProgress(ow, actDtls[i].activationId, batchInProg)) return batchInProg;
+        if (batchInProg) batchInProg = await actInProgress(ow, actDtls[i].activationId, batchInProg);
     }
     return batchInProg;
 }

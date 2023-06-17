@@ -91,7 +91,8 @@ async function delay(milliseconds = 100) {
 async function actInProgress(ow, actId, svInProg = true) {
     const logger = getAioLogger();
     const finStatuses = ['success', 'failure', 'skipped', 'developer_error',
-        'system_error', 'invocation_error', 'application_error', 'timeout'];
+        'system_error', 'invocation_error', 'application_error', 'timeout',
+        'action developer error'];
     if (svInProg && actId) {
         let owAct = {};
         try {

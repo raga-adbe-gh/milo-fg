@@ -64,7 +64,7 @@ async function main(params) {
             logger.error(payload);
         } else if (!adminPageUri || !projectExcelPath) {
             payload = 'Required data is not available to proceed with FG Promote action.';
-            fgStatus.updateStatusToStateLib({
+            await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.FAILED,
                 statusMessage: payload
             });
@@ -72,28 +72,28 @@ async function main(params) {
         } else {
             urlInfo.setUrlInfo(adminPageUri);
             payload = 'Getting all files to be promoted.';
-            fgStatus.updateStatusToStateLib({
+            await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
                 statusMessage: payload
             });
             logger.info(payload);
             payload = 'Creating batches.';
             payload = await createBatch(batchManager);
-            fgStatus.updateStatusToStateLib({
+            await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
                 statusMessage: payload
             });
             logger.info(payload);
             payload = 'Triggering activation.';
             payload = await triggerBatches(ow, params, batchManager, fgStatus);
-            fgStatus.updateStatusToStateLib({
+            await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
                 statusMessage: payload
             });
             logger.info(payload);
         }
     } catch (err) {
-        fgStatus.updateStatusToStateLib({
+        await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
             statusMessage: err.message,
         });
@@ -114,8 +114,8 @@ async function findAllFiles() {
     const baseURI = `${sp.api.excel.update.fgBaseURI}`;
     const rootFolder = baseURI.split('/').pop();
     const options = await getAuthorizedRequestOption({ method: 'GET' });
-
-    return findAllFloodgatedFiles(baseURI, options, rootFolder, [], ['/drafts/raga']);
+    // Temporarily restricting the iteration for promote to under /drafts folder only
+    return findAllFloodgatedFiles(baseURI, options, rootFolder, [], ['/drafts']);
 }
 
 /**
@@ -182,7 +182,7 @@ async function triggerBatches(ow, args, batchManager, fgStatus) {
     await delay(6000); // Delay a bit
     const resp = await triggerTrackerActivation(ow, args, actDtls, fgStatus);
     logger.info(`All actions triggered ${JSON.stringify(resp)}`);
-    fgStatus.updateStatusToStateLib({ batches: resp });
+    await fgStatus.updateStatusToStateLib({ batches: resp });
     return {
         status: 200,
         payload: { ...resp }

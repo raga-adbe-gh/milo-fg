@@ -75,7 +75,8 @@ async function main(args) {
             } else {
                 payload = await fgStatus.updateStatusToStateLib({
                     status: FgStatus.PROJECT_STATUS.STARTED,
-                    statusMessage: 'Triggering promote action'
+                    statusMessage: 'Triggering promote action',
+                    batches: {}
                 });
                 return ow.actions.invoke({
                     name: 'milo-fg/promote-batch',

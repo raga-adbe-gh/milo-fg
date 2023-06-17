@@ -96,7 +96,7 @@ class FgStatus {
         status, statusMessage, activationId, action, startTime, endTime, batches
     }) {
         try {
-            await this.getStatusFromStateLib().then((result) => {
+            await this.getStatusFromStateLib().then(async (result) => {
                 if (result?.action) {
                     this.storeStatus = result;
                     if (status) {
@@ -136,7 +136,7 @@ class FgStatus {
                         this.storeStatus.action.startTime = this.storeStatus.action.endTime;
                     }
                 }
-                this.updateStateStatus();
+                await this.updateStateStatus();
             });
         } catch (err) {
             this.logger.error(`Error creating state store ${err}`);

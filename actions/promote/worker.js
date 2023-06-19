@@ -121,10 +121,9 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
 
     async function promoteFile(batchItem) {
         const { fileDownloadUrl, filePath } = batchItem.file;
-        const status = { success: false };
+        const status = { success: false, srcPath: filePath };
         try {
             let promoteSuccess = false;
-            logger.info(`Promoting ${filePath}`);
             const destinationFolder = `${filePath.substring(0, filePath.lastIndexOf('/'))}`;
             const copyFileStatus = await promoteCopy(filePath, destinationFolder);
             if (copyFileStatus) {
@@ -137,11 +136,10 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
                 }
             }
             status.success = promoteSuccess;
-            status.srcPath = filePath;
         } catch (error) {
             const errorMessage = `Error promoting files ${fileDownloadUrl} at ${filePath} to main content tree ${error.message}`;
             logger.error(errorMessage);
-            throw new Error(errorMessage, error);
+            status.success = false;
         }
         return status;
     }
@@ -160,7 +158,6 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         const arrayChunk = allFloodgatedFiles.slice(i, i + numBulkPerBatch);
         batchArray.push(arrayChunk);
     }
-    logger.info(`Batches batchArray creaed ${i}`);
 
     // process data in batches
     const promoteStatuses = [];
@@ -172,7 +169,6 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
         await delay(DELAY_TIME_PROMOTE);
     }
-    logger.info(`Batches batchArray index ${i}`);
 
     payload = 'Completed promoting all documents in the pink folder';
     logger.info(payload);
@@ -200,6 +196,7 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         .map((status) => status.path);
     const failedPublishes = publishStatuses.filter((status) => !status.success)
         .map((status) => status.path);
+    logger.info(`BFL: Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length} `);
 
     if (failedPromotes.length > 0 || failedPreviews.length > 0 || failedPublishes.length > 0) {
         payload = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';

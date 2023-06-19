@@ -68,7 +68,6 @@ async function main(params) {
                 status: FgStatus.PROJECT_STATUS.FAILED,
                 statusMessage: payload
             });
-            logger.error(payload);
         } else {
             urlInfo.setUrlInfo(adminPageUri);
             payload = 'Getting all files to be promoted.';
@@ -129,6 +128,8 @@ async function findAllFloodgatedFiles(baseURI, options, rootFolder, fgFiles, fgF
         if (res.ok) {
             // eslint-disable-next-line no-await-in-loop
             const json = await res.json();
+            // eslint-disable-next-line no-await-in-loop
+            await delay(10000);
             const driveItems = json.value;
             driveItems?.forEach((item) => {
                 const itemPath = `${item.parentReference.path.replace(`/drive/root:/${rootFolder}`, '')}/${item.name}`;
@@ -160,6 +161,7 @@ async function createBatch(batchManager) {
         // eslint-disable-next-line no-await-in-loop
         await batchManager.addFile(allFgFiles[i]);
     }
+    await batchManager.saveRemainig();
     payload = 'Completed creating batches';
     return payload;
 }
@@ -180,9 +182,9 @@ async function triggerBatches(ow, args, batchManager, fgStatus) {
         actDtls.push(await triggerActivation(ow, args, batches[i], fgStatus));
     }
     await batchManager.addToManifest({ actDtls });
-    await delay(6000); // Delay a bit
+    await delay(60000); // Delay a bit
     const resp = await triggerTrackerActivation(ow, args, actDtls, fgStatus);
-    logger.info(`All actions triggered ${JSON.stringify(resp)}`);
+    // logger.info(`All actions triggered ${JSON.stringify(resp)}`);
     await fgStatus.updateStatusToStateLib({ batches: resp });
     return {
         status: 200,
@@ -206,8 +208,7 @@ async function triggerActivation(ow, args, batch, fgStatus) {
         result: false,
         params: { batchNumber: batch.getBatchNumber(), ...args }
     }).then(async (result) => {
-        logger.info(`Activation details ${JSON.stringify(result)}`);
-        //  attaching activation id to the status
+        // attaching activation id to the status
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             activationId: result.activationId

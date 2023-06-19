@@ -161,10 +161,15 @@ class BatchManager {
             if (this.currentBatch && this.currentBatch.canAddFile()) {
                 await this.currentBatch.addFile(file);
             } else if (!retryCount) {
+                await this.currentBatch?.savePendingFiles();
                 await this.createBatch();
                 await this.addFile(file, 1);
             }
         }
+    }
+
+    async saveRemainig() {
+        this.currentBatch?.savePendingFiles();
     }
 
     /**

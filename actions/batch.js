@@ -23,7 +23,7 @@ const logger = getAioLogger();
 const NUM_BATCH_FILES = 10;
 const FOLDER_PREFIX = 'batch';
 const FILENAME_PREFIX = 'bfile';
-const FILE_PATTERN = `/${FILENAME_PREFIX}[^/]*\\.json`;
+const FILE_METADATA_JSON = 'batchfiles_metadata.json';
 
 /**
  * Holds the batch related information like the path where the batch specific files are stored
@@ -31,6 +31,8 @@ const FILE_PATTERN = `/${FILENAME_PREFIX}[^/]*\\.json`;
  * batch number/path along with additional details which can be used further.
  */
 class Batch {
+    batchFiles = [];
+
     /**
      * Uses the configruations for setting up the batch. Setsup the batch path and manifest file.
      */
@@ -41,6 +43,7 @@ class Batch {
         this.batchNumber = params?.batchNumber || 1;
         this.numBatchFiles = params?.numBatchFiles || NUM_BATCH_FILES;
         this.batchPath = `${this.filesSdkPath}/${FOLDER_PREFIX}_${this.batchNumber}`;
+        this.batchCollFilePath = `${this.batchPath}/${FILE_METADATA_JSON}`;
         this.manifestFile = `${this.batchPath}/milo_batch_manifest.json`;
         this.numFiles = 0;
     }
@@ -72,31 +75,28 @@ class Batch {
     async addFile(file) {
         if (this.filesSdk && this.filesSdkPath) {
             const batchFn = `${FILENAME_PREFIX}_${this.numFiles + 1}.json`;
-            const filePath = `${this.batchPath}/${batchFn}`;
-            const dataStr = JSON.stringify({ file, batchFn, batchNumber: this.batchNumber });
-            logger.info(`Batch path write  ${filePath} with files ${dataStr}`);
-            await this.filesSdk.write(filePath, dataStr);
+            const data = { file, batchFn, batchNumber: this.batchNumber };
+            this.batchFiles.push(data);
             this.numFiles += 1;
         }
     }
 
     /**
-     * @returns Files content stored in the files in the batch.
+     * Flush data to file
      */
+    async savePendingFiles() {
+        if (!this.filesSdk || !this.batchFiles?.length) return;
+        const dataStr = JSON.stringify(this.batchFiles);
+        await this.filesSdk.write(this.batchCollFilePath, dataStr);
+        this.batchCollFilePath = [];
+    }
+
     async getFiles() {
         logger.info(`get batch files ${this.filesSdk} and ${this.filesSdkPath}`);
-        const fileContents = [];
+        let fileContents = [];
         if (this.filesSdk && this.filesSdkPath) {
-            const dirPath = `${this.batchPath}/`;
-            const fileList = await this.filesSdk.list(dirPath);
-            logger.info(`Batch getFiles ${dirPath} with files ${fileList.length}`);
-            const rx = new RegExp(FILE_PATTERN);
-            for (let i = 0; i < fileList.length; i += 1) {
-                if (rx.test(fileList[i]?.name)) {
-                    const dataStr = await this.filesSdk.read(fileList[i].name);
-                    fileContents.push(JSON.parse(dataStr));
-                }
-            }
+            const dataStr = await this.filesSdk.read(this.batchCollFilePath);
+            fileContents = JSON.parse(dataStr);
         }
         return fileContents;
     }

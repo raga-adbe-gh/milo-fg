@@ -92,7 +92,7 @@ async function actInProgress(ow, actId, svInProg = true) {
     const logger = getAioLogger();
     const finStatuses = ['success', 'failure', 'skipped', 'developer_error',
         'system_error', 'invocation_error', 'application_error', 'timeout',
-        'action developer error'];
+        'action developer error', 'application error'];
     if (svInProg && actId) {
         let owAct = {};
         try {

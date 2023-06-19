@@ -129,7 +129,6 @@ async function findAllFloodgatedFiles(baseURI, options, rootFolder, fgFiles, fgF
             // eslint-disable-next-line no-await-in-loop
             const json = await res.json();
             // eslint-disable-next-line no-await-in-loop
-            await delay(10000);
             const driveItems = json.value;
             driveItems?.forEach((item) => {
                 const itemPath = `${item.parentReference.path.replace(`/drive/root:/${rootFolder}`, '')}/${item.name}`;
@@ -254,4 +253,6 @@ async function triggerTrackerActivation(ow, args, actDtls, fgStatus) {
         return { actDtls };
     });
 }
+
+
 exports.main = main;

@@ -22,7 +22,6 @@ const logger = getAioLogger();
 
 const NUM_BATCH_FILES = 10;
 const FOLDER_PREFIX = 'batch';
-const FILENAME_PREFIX = 'bfile';
 const FILE_METADATA_JSON = 'batchfiles_metadata.json';
 
 /**
@@ -45,7 +44,6 @@ class Batch {
         this.batchPath = `${this.filesSdkPath}/${FOLDER_PREFIX}_${this.batchNumber}`;
         this.batchCollFilePath = `${this.batchPath}/${FILE_METADATA_JSON}`;
         this.manifestFile = `${this.batchPath}/milo_batch_manifest.json`;
-        this.numFiles = 0;
     }
 
     /**
@@ -66,7 +64,7 @@ class Batch {
      * @returns Checks if the file can be added based on threshold config
      */
     canAddFile() {
-        return this.filesSdk && this.filesSdkPath && this.numFiles < this.numBatchFiles;
+        return this.filesSdk && this.filesSdkPath && this.batchFiles.length < this.numBatchFiles;
     }
 
     /**
@@ -74,10 +72,8 @@ class Batch {
      */
     async addFile(file) {
         if (this.filesSdk && this.filesSdkPath) {
-            const batchFn = `${FILENAME_PREFIX}_${this.numFiles + 1}.json`;
-            const data = { file, batchFn, batchNumber: this.batchNumber };
+            const data = { file, batchNumber: this.batchNumber };
             this.batchFiles.push(data);
-            this.numFiles += 1;
         }
     }
 

@@ -157,7 +157,7 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
         batchNumber = actDtls[i].batchNumber;
         batchManager.setupCurrentBatch({ batchNumber });
         try {
-            manifest = await batchManager.getCurrentBatchManifestContent();
+            manifest = await batchManager.getCurrentBatch().get();
             if (manifest?.failedPromotes?.length > 0) {
                 failedPromotes.push(...manifest.failedPromotes);
             }

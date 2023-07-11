@@ -43,7 +43,7 @@ class Batch {
         this.numBatchFiles = params?.numBatchFiles || NUM_BATCH_FILES;
         this.batchPath = `${this.filesSdkPath}/${FOLDER_PREFIX}_${this.batchNumber}`;
         this.batchCollFilePath = `${this.batchPath}/${FILE_METADATA_JSON}`;
-        this.manifestFile = `${this.batchPath}/milo_batch_manifest.json`;
+        this.resultsFile = `${this.batchPath}/results.json`;
     }
 
     /**
@@ -100,15 +100,15 @@ class Batch {
     /**
      * @param {*} data Writes to batch metadata e.g. failed previews.
      */
-    async writeToManifest(data) {
-        await this.filesSdk.write(this.manifestFile, JSON.stringify(data));
+    async writeResults(data) {
+        await this.filesSdk.write(this.resultsFile, JSON.stringify(data));
     }
 
     /**
      * @returns Get manifest file content e.g. json for updating status/reporting
      */
-    async getManifestContent() {
-        const buffer = await this.filesSdk.read(this.manifestFile);
+    async getResultsContent() {
+        const buffer = await this.filesSdk.read(this.resultsFile);
         const data = buffer.toString();
         return JSON.parse(data);
     }

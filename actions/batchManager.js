@@ -36,6 +36,8 @@ const logger = getAioLogger();
  *   There needs to be enhacement to handle this within this e.g. Batch execution stargergy should be implemented.
  */
 class BatchManager {
+    manifestData = { lastBatch: '', dtls: { batchesInfo: [] } };
+
     /**
      * Initializes the batch manager based on the action and sets up manifest files.
      * Default files in batch is 1000 and filePath is generate based on configuration and action
@@ -46,9 +48,87 @@ class BatchManager {
         this.batches = [];
         this.action = params.action;
         this.filesSdk = params.filesSdk;
-        this.filesSdkPath = `${appConfig.getBatchConfig()?.batchFilesPath}/${this.action}`;
         this.numBatchFiles = appConfig.getBatchConfig().numBatchFiles;
+        this.batchFilesPath = appConfig.getBatchConfig()?.batchFilesPath;
+        this.bmPath = `${this.batchFilesPath}/${this.action}`;
+        this.bmTracker = `${this.bmPath}/milo_tracker.json`;
+        this.setInstanceKey(params);
+    }
+
+    /**
+     * Setup instance key e.g. Promote File is action and the fgRootPath (e.g. /milo-pink is key)
+     * @param {*} params {instanceKey: <e.g. fgRootPath>}
+     * @returns this
+     */
+    setInstanceKey(params) {
+        this.instanceKey = (params.instanceKey || 'default').replaceAll('/', '_');
+        this.filesSdkPath = `${this.batchFilesPath}/${this.action}/${this.instanceKey}`;
         this.manifestFile = `${this.filesSdkPath}/milo_batching_manifest.json`;
+        return this;
+    }
+
+    /**
+     * Structure
+     * {
+     *   instanceKeys: [_milo_pink],
+     *   '_milo_pink': {params: {<job params>}, batchNumber: <>, done: <true>, proceed: <true>}
+     * }
+     */
+    async readBmTracker() {
+        try {
+            const buffer = await this.filesSdk.read(this.bmTracker);
+            return JSON.parse(buffer.toString());
+        } catch (err) {
+            logger.error(`Error while reading bmTracker file ${err.message}`);
+            return {};
+        }
+    }
+
+    async writeToBmTracker(data) {
+        const content = await this.readBmTracker();
+        content.instanceKeys = content.instanceKeys || [];
+        if (content.instanceKeys) {
+            const filteredArray = content.instanceKeys.filter((e) => e !== null);
+            content.instanceKeys = filteredArray;
+            if (this.instanceKey && !content.instanceKeys.includes(this.instanceKey)) {
+                content.instanceKeys.push(this.instanceKey);
+            }
+        }
+        await this.filesSdk.write(this.bmTracker, JSON.stringify({ ...content, ...data }));
+    }
+
+    async enableForTriggerNTrack(data) {
+        const params = {};
+        params[`${this.instanceKey}`] = {
+            params: data || {},
+            batchNumber: 1,
+            done: false,
+            proceed: true,
+        };
+        await this.writeToBmTracker(params);
+    }
+
+    async resumeBatch() {
+        let instanceData = null;
+        const bmData = await this.readBmTracker();
+        logger.info(`Resume data ${JSON.stringify(bmData)}`);
+        const instanceKey = bmData.instanceKeys?.find((e) => !bmData[e].done && bmData[e].proceed);
+        if (bmData[instanceKey]) {
+            this.setInstanceKey({ instanceKey });
+            this.setupCurrentBatch({ batchNumber: bmData[instanceKey].batchNumber });
+            instanceData = await this.getManifestContent();
+        }
+        return instanceData;
+    }
+
+    async markComplete() {
+        const params = {};
+        params[`${this.instanceKey}`] = {
+            batchNumber: 1,
+            done: true,
+            proceed: false,
+        };
+        await this.writeToBmTracker(params);
     }
 
     /** Cleanup files for the current action */
@@ -58,7 +138,7 @@ class BatchManager {
 
     /**
      * Returns the current running batch interface
-     * @returns Batch which has details like battch number and batchPath
+     * @returns Batch which has details like batch number and batchPath
      */
     async getCurrentBatch() {
         if (!this.currentBatch) {
@@ -94,6 +174,8 @@ class BatchManager {
             batchNumber: this.currentBatchNumber,
             numBatchFiles: this.numBatchFiles
         });
+        logger.info(`Batch data ${JSON.stringify(this.currentBatch)}`);
+        logger.info(`Batch data ${this.currentBatch.getBatchNumber()}`);
         this.batches.push(this.currentBatch);
     }
 
@@ -110,7 +192,13 @@ class BatchManager {
             numBatchFiles: this.numBatchFiles
         });
         this.batches.push(this.currentBatch);
-        this.writeToManifest({ lastBatch: this.currentBatchNumber, dtls: {} });
+        this.manifestData.lastBatch = this.currentBatchNumber;
+        this.manifestData.dtls.batchesInfo = this.getBatchesInfo();
+        this.writeToManifest(this.manifestData);
+    }
+
+    getBatchesInfo() {
+        return this.batches.map((b) => ({ batchNumber: b.getBatchNumber() }));
     }
 
     /**
@@ -177,22 +265,6 @@ class BatchManager {
      */
     getBatches() {
         return this.batches;
-    }
-
-    /**
-     * Write data to current processing batch. Used by worker
-     * @param {*} data Custom data that needs to be store in manifest other than batch number
-     */
-    async writeToCurrentBatchManifest(data) {
-        await this.currentBatch?.writeToManifest(data);
-    }
-
-    /**
-     * @returns Current batch manifest content.
-     */
-    async getCurrentBatchManifestContent() {
-        const data = await this.currentBatch?.getManifestContent();
-        return data;
     }
 }
 

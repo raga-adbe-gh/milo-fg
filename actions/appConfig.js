@@ -53,6 +53,11 @@ class AppConfig {
         };
     }
 
+    getSiteConfig() {
+        const { fgSite, fgRootFolder } = this.configMap;
+        return { fgSite, fgRootFolder };
+    }
+
     getFgSite() {
         return this.configMap.fgSite;
     }

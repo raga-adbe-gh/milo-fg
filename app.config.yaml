@@ -53,6 +53,15 @@ application:
             limits:
               timeout: 1900000
               memory: 1024
+          promote-create-batch:
+            function: actions/promote/createBatch.js
+            web: 'no'
+            runtime: nodejs:16
+            inputs:
+              LOG_LEVEL: debug
+            limits:
+              timeout: 1900000
+              memory: 1024              
           promote-worker:
             function: actions/promote/worker.js
             web: 'no'
@@ -71,9 +80,26 @@ application:
               LOG_LEVEL: debug
             limits:
               timeout: 3600000
+          promote-trigger-n-track:
+            function: actions/promote/triggerNTrack.js
+            web: 'no'
+            runtime: nodejs:16
+            inputs:
+              LOG_LEVEL: debug
+            limits:
+              timeout: 600000
           status:
             function: actions/status/status.js
             web: 'yes'
             runtime: nodejs:16
             inputs:
               LOG_LEVEL: debug
+        triggers:
+          everyMin:
+            feed: /whisk.system/alarms/interval
+            inputs: 
+              minutes: 2
+        rules:
+          everyMinRule:
+            trigger: everyMin
+            action: promote-trigger-n-track

@@ -22,7 +22,7 @@ const {
     getAuthorizedRequestOption, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, logMemUsage, delay, PROMOTE_ACTION
+    getAioLogger, logMemUsage, PROMOTE_ACTION
 } = require('../utils');
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
@@ -58,6 +58,7 @@ async function main(params) {
     const batchManager = new BatchManager({ action: PROMOTE_ACTION, filesSdk });
     // For current cleanup files before starting
     await batchManager.cleanupFiles();
+    fgStatus.reset();
     try {
         if (!fgRootFolder) {
             payload = 'Required data is not available to proceed with FG Promote action.';
@@ -80,16 +81,18 @@ async function main(params) {
             payload = await createBatch(batchManager);
             await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload
+                statusMessage: payload,
+                batchesInfo: batchManager.getBatchesInfo()
             });
             logger.info(payload);
-            payload = 'Triggering activation.';
-            payload = await triggerBatches(ow, params, batchManager, fgStatus);
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload
+
+            // Ensure that inputs are added for references
+            await batchManager.addToManifest({
+                adminPageUri, projectExcelPath, fgRootFolder
             });
-            logger.info(payload);
+
+            // Trigger N Track the batches
+            await batchManager.enableForTriggerNTrack();
         }
     } catch (err) {
         await fgStatus.updateStatusToStateLib({
@@ -164,100 +167,5 @@ async function createBatch(batchManager) {
     payload = 'Completed creating batches';
     return payload;
 }
-
-/**
- * The batches created by the BatchManager are pulled and manifest are updated along with trigger the actions.
- * @param {*} ow Openwish interface instance
- * @param {*} args args the this action (e.g. projectPath)
- * @param {*} batchManager BatchManager instance
- * @param {*} fgStatus Floodgate status to store the fields
- * @returns status with details of activations
- */
-async function triggerBatches(ow, args, batchManager, fgStatus) {
-    const {
-        adminPageUri, projectExcelPath, fgRootFolder
-    } = args;
-    const batches = batchManager.getBatches();
-    const actDtls = [];
-    for (let i = 0; i < batches.length; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        actDtls.push(await triggerActivation(ow, args, batches[i], fgStatus));
-    }
-    await batchManager.addToManifest({
-        actDtls, adminPageUri, projectExcelPath, fgRootFolder
-    });
-    await delay(60000); // Delay a bit
-    const resp = await triggerTrackerActivation(ow, args, actDtls, fgStatus);
-    // logger.info(`All actions triggered ${JSON.stringify(resp)}`);
-    await fgStatus.updateStatusToStateLib({ batches: resp });
-    return {
-        status: 200,
-        payload: { ...resp }
-    };
-}
-
-/**
- * The batch for which the activation is triggered.
- * @param {*} ow Openwish interface instance
- * @param {*} args args the this action (e.g. projectPath)
- * @param {*} batch Batch for which activation is triggered
- * @param {*} fgStatus Floodgate status to store the fields
- * @returns status with details of activations
- * @returns status of activation
- */
-async function triggerActivation(ow, args, batch, fgStatus) {
-    return ow.actions.invoke({
-        name: 'milo-fg/promote-worker',
-        blocking: false, // this is the flag that instructs to execute the worker asynchronous
-        result: false,
-        params: { batchNumber: batch.getBatchNumber(), ...args }
-    }).then(async (result) => {
-        // attaching activation id to the status
-        await fgStatus.updateStatusToStateLib({
-            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-            activationId: result.activationId
-        });
-        return {
-            batchNumber: batch.getBatchNumber(),
-            activationId: result.activationId
-        };
-    }).catch(async (err) => {
-        await fgStatus.updateStatusToStateLib({
-            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-            statusMessage: `Failed to invoke actions ${err.message} for batch ${batch.getBatchNumber()}`
-        });
-        logger.error('Failed to invoke actions', err);
-        return {
-            batchNumber: batch.getBatchNumber()
-        };
-    });
-}
-
-/**
- * A tracker activation is triggered to track the progress of the batches and update accordingly
- * @param {*} ow Openwish interface instance
- * @param {*} args args the this action (e.g. projectPath)
- * @param {*} batchManager BatchManager instance
- * @param {*} fgStatus Floodgate status to store the fields
- * @returns Tracker activation details
- */
-async function triggerTrackerActivation(ow, args, actDtls, fgStatus) {
-    return ow.actions.invoke({
-        name: 'milo-fg/promote-tracker',
-        blocking: false, // this is the flag that instructs to execute the worker asynchronous
-        result: false,
-        params: { ...args, actDtls }
-    }).then(async (result) => ({
-        activationId: result.activationId,
-        actDtls
-    })).catch(async (err) => {
-        await fgStatus.updateStatusToStateLib({
-            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-            statusMessage: `Failed to invoke actions ${err.message} for tracker`
-        });
-        return { actDtls };
-    });
-}
-
 
 exports.main = main;

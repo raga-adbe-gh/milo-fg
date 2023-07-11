@@ -202,7 +202,7 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         payload = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
         logger.info(payload);
         // Write the information to batch manifest
-        await batchManager.writeToCurrentBatchManifest({ failedPromotes, failedPreviews, failedPublishes });
+        await batchManager.getCurrentBatch().writeResults({ failedPromotes, failedPreviews, failedPublishes });
         throw new Error(payload);
     } else {
         payload = 'Promoted floodgate tree successfully.';

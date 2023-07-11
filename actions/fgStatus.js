@@ -41,7 +41,7 @@ class FgStatus {
     /**
      * Template that will be populated and stored in state
      */
-    storeStatus = {
+    storeStatusTmpl = {
         action: {
             lastTriggeredBy: '',
             type: '',
@@ -50,9 +50,11 @@ class FgStatus {
             activationId: '',
             startTime: '',
             endTime: '',
-            batches: { actIds: [], tracker: null }
+            batchesInfo: []
         }
     };
+
+    storeStatus = JSON.parse(JSON.stringify(this.storeStatusTmpl));
 
     /**
      * Constructor with initial setup
@@ -191,6 +193,11 @@ class FgStatus {
         } catch (err) {
             this.logger.error(`Error creating state store ${err}`);
         }
+    }
+
+    reset() {
+        // Reset the status in state
+        this.updateStateStatus(this.storeStatusTmpl);
     }
 }
 

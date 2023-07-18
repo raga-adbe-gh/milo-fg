@@ -207,10 +207,9 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
     for (let i = 0; i < actDtls?.length || 0; i += 1) {
         batchNumber = actDtls[i].batchNumber;
         logger.info(`Batch check is ${JSON.stringify(actDtls[i])}`);
-        batchManager.setupCurrentBatch({ batchNumber });
         try {
-            const batch = batchManager.getCurrentBatch();
-            logger.info(`Batch is ${JSON.stringify(batch)}`);
+            batchManager.initBatch({ batchNumber });
+            const batch = await batchManager.getCurrentBatch();
             results = await batch.getResultsContent();
             if (results?.failedPromotes?.length > 0) {
                 failedPromotes.push(...results.failedPromotes);

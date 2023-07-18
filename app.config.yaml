@@ -21,7 +21,7 @@ application:
           certThumbprint: $CERT_THUMB_PRINT
           batchFilesPath: $BATCH_FILES_PATH
           maxFilesPerBatch: $MAX_FILES_PER_BATCH
-          numBulkPerBatch: $NUM_BULK_PER_BATCH
+          numBulkReq: $NUM_BULK_REQUEST
         actions:
           copy:
             function: actions/copy/copy.js

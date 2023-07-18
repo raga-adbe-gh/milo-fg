@@ -64,7 +64,7 @@ class BatchManager {
      */
     initInstance(params) {
         this.instanceKey = (params.instanceKey || 'default').replaceAll('/', '_');
-        this.instancePath = `${this.batchFilesPath}/${this.key}/${this.instanceKey}`;
+        this.instancePath = `${this.batchFilesPath}/${this.key}/instance${this.instanceKey}`;
         this.instanceFile = `${this.instancePath}/milo_batching_instance.json`;
         return this;
     }
@@ -162,8 +162,7 @@ class BatchManager {
     async getInstanceFileContent() {
         const buffer = await this.filesSdk.read(this.instanceFile);
         const data = buffer.toString();
-        logger.log(`Instance file content ${data}`);
-        return JSON.parse(buffer.toString());
+        return JSON.parse(data);
     }
 
     /**

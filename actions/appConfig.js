@@ -92,7 +92,7 @@ class AppConfig {
     }
 
     getNumBulkReq() {
-        return this.numBulkReq;
+        return this.configMap.numBulkReq;
     }
 }
 

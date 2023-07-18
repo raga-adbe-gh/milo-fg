@@ -145,7 +145,6 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
     let payload = 'Getting all floodgated files to promote.';
     // Get the batch files using the batchmanager for the assigned batch and process them
     const currentBatch = await batchManager.getCurrentBatch();
-    logger.info(`Obtained current batch ${currentBatch}`);
     const allFloodgatedFiles = await currentBatch?.getFiles();
     logger.info(`Files for the batch are ${allFloodgatedFiles.length}`);
     // create batches to process the data
@@ -198,9 +197,8 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
     if (failedPromotes.length > 0 || failedPreviews.length > 0 || failedPublishes.length > 0) {
         payload = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
         logger.info(payload);
-        logger.info(`File ${JSON.stringify(failedPromotes)} ${JSON.stringify(failedPreviews)} ${JSON.stringify(failedPublishes)}`);
         // Write the information to batch manifest
-        await batchManager.getCurrentBatch().writeResults({ failedPromotes, failedPreviews, failedPublishes });
+        currentBatch.writeResults({ failedPromotes, failedPreviews, failedPublishes });
         throw new Error(payload);
     } else {
         payload = 'Promoted floodgate tree successfully.';

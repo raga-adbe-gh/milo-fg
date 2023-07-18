@@ -49,7 +49,7 @@ async function main(params) {
     logMemUsage();
     let payload;
     const {
-        adminPageUri, projectExcelPath, fgRootFolder
+        adminPageUri, projectExcelPath, fgRootFolder, doPublish
     } = params;
     appConfig.setAppConfig(params);
     const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder });

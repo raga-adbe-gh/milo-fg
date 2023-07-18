@@ -18,7 +18,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const openwhisk = require('openwhisk');
 const {
-    getAioLogger, actInProgress, PROMOTE_ACTION
+    getAioLogger, PROMOTE_ACTION
 } = require('../utils');
 const appConfig = require('../appConfig');
 const { isAuthorizedUser } = require('../sharepoint');

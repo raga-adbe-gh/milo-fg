@@ -16,13 +16,12 @@
 * from Adobe.
 ************************************************************************* */
 
-const filesLib = require('@adobe/aio-lib-files');
 const { getConfig } = require('../config');
 const {
     getAuthorizedRequestOption, saveFile, getFileUsingDownloadUrl, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, simulatePreviewPublish, handleExtension, delay, logMemUsage, PREVIEW, PUBLISH, PROMOTE_ACTION, PROMOTE_BATCH
+    getAioLogger, simulatePreviewPublish, handleExtension, delay, logMemUsage, getInstanceKey, PREVIEW, PUBLISH, PROMOTE_ACTION, PROMOTE_BATCH
 } = require('../utils');
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
@@ -42,10 +41,8 @@ async function main(params) {
     appConfig.setAppConfig(params);
     // Tracker uses the below hence change here might need change in tracker as well.
     const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, statusKey: `${fgRootFolder}~Batch_${batchNumber}` });
-    const filesSdk = await filesLib.init();
-    const batchManager = BatchManager.getBatchManagerForBatch({
-        action: PROMOTE_ACTION, filesSdk, batchNumber
-    });
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder }) });
+    await batchManager.init({ batchNumber });
     try {
         if (!fgRootFolder) {
             payload = 'Required data is not available to proceed with FG Promote action.';
@@ -153,9 +150,9 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
     logger.info(`Files for the batch are ${allFloodgatedFiles.length}`);
     // create batches to process the data
     const batchArray = [];
-    const { numBulkPerBatch } = appConfig.getBatchConfig();
-    for (i = 0; i < allFloodgatedFiles.length; i += numBulkPerBatch) {
-        const arrayChunk = allFloodgatedFiles.slice(i, i + numBulkPerBatch);
+    const numBulkReq = appConfig.getNumBulkReq();
+    for (i = 0; i < allFloodgatedFiles.length; i += numBulkReq) {
+        const arrayChunk = allFloodgatedFiles.slice(i, i + numBulkReq);
         batchArray.push(arrayChunk);
     }
 
@@ -196,11 +193,12 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         .map((status) => status.path);
     const failedPublishes = publishStatuses.filter((status) => !status.success)
         .map((status) => status.path);
-    logger.info(`BFL: Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length} `);
+    logger.info(`Batch ${currentBatch.getBatchNumber()}, Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length}`);
 
     if (failedPromotes.length > 0 || failedPreviews.length > 0 || failedPublishes.length > 0) {
         payload = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
         logger.info(payload);
+        logger.info(`File ${JSON.stringify(failedPromotes)} ${JSON.stringify(failedPreviews)} ${JSON.stringify(failedPublishes)}`);
         // Write the information to batch manifest
         await batchManager.getCurrentBatch().writeResults({ failedPromotes, failedPreviews, failedPublishes });
         throw new Error(payload);

@@ -17,7 +17,6 @@
 ************************************************************************* */
 
 const openwhisk = require('openwhisk');
-const filesLib = require('@adobe/aio-lib-files');
 const { updateExcelTable } = require('../sharepoint');
 const {
     getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress
@@ -31,13 +30,13 @@ const logger = getAioLogger();
 
 async function main(params) {
     let payload;
-    const filesSdk = await filesLib.init();
     appConfig.setAppConfig(params);
 
-    const batchManager = new BatchManager({ action: PROMOTE_ACTION, filesSdk });
-    const intanceContent = await batchManager.resumeBatch();
-    logger.info(`Instance data is ${JSON.stringify(intanceContent)}`);
-    if (!intanceContent || !intanceContent.dtls) {
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION });
+    await batchManager.init();
+    const instanceContent = await batchManager.resumeInstance();
+    logger.info(`Instance data is ${JSON.stringify(instanceContent)}`);
+    if (!instanceContent || !instanceContent.dtls) {
         return { body: 'None to run!' };
     }
 
@@ -46,8 +45,9 @@ async function main(params) {
         adminPageUri,
         projectExcelPath,
         fgRootFolder,
+        doPublish,
         batchesInfo
-    } = intanceContent.dtls;
+    } = instanceContent.dtls;
 
     const ow = openwhisk();
     // Reset with inputs
@@ -82,7 +82,7 @@ async function main(params) {
             logger.info(`Batch check response ${JSON.stringify(batchCheckResp)}`);
             const { anyInProg, allDone } = batchCheckResp;
             // write to manifest
-            await batchManager.writeToManifest(intanceContent);
+            await batchManager.writeToInstanceFile(instanceContent);
 
             // Collect status and mark as complete
             if (allDone) {
@@ -90,17 +90,22 @@ async function main(params) {
             } else if (!anyInProg) {
                 // Trigger next activation
                 const nextItem = batchesInfo.find((b) => !b.activationId);
-                const nextBatchNumber = nextItem?.batchNumber;
-                if (nextBatchNumber) {
+                const batchNumber = nextItem?.batchNumber;
+                if (batchNumber) {
                     const newActDtls = await triggerActivation(ow,
-                        { adminPageUri, projectExcelPath, fgRootFolder },
-                        nextItem,
+                        {
+                            adminPageUri,
+                            projectExcelPath,
+                            fgRootFolder,
+                            doPublish,
+                            batchNumber
+                        },
                         fgStatus);
                     nextItem.activationId = newActDtls?.activationId;
                 }
             }
-            // write to manifest
-            await batchManager.writeToManifest(intanceContent);
+            // write to manifest - This will now have activation id
+            await batchManager.writeToInstanceFile(instanceContent);
 
             payload = 'Promoted trigger and track completed.';
             logger.info(payload);
@@ -158,29 +163,12 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
     return { anyInProg: batchInProg, allDone };
 }
 
-/**
- * The batch for which the activation is triggered.
- * @param {*} ow Openwish interface instance
- * @param {*} args args the this action (e.g. projectPath)
- * @param {*} batch Batch for which activation is triggered
- * @param {*} fgStatus Floodgate status to store the fields
- * @returns status with details of activations
- * @returns status of activation
- */
-async function triggerActivation2(ow, args, batchData, fgStatus) {
-    logger.info('Dummy triggerActivation');
-    return {
-        batchNumber: batchData.batchNumber,
-        activationId: `dummy_activation_${batchData.batchNumber}`
-    };
-}
-
-async function triggerActivation(ow, args, batchData, fgStatus) {
+async function triggerActivation(ow, params, fgStatus) {
     return ow.actions.invoke({
         name: 'milo-fg/promote-worker',
         blocking: false, // this is the flag that instructs to execute the worker asynchronous
         result: false,
-        params: { batchNumber: batchData.batchNumber, ...args }
+        params
     }).then(async (result) => {
         // attaching activation id to the status
         await fgStatus.updateStatusToStateLib({
@@ -188,17 +176,17 @@ async function triggerActivation(ow, args, batchData, fgStatus) {
             activationId: result.activationId
         });
         return {
-            batchNumber: batchData.batchNumber,
+            batchNumber: params.batchNumber,
             activationId: result.activationId
         };
     }).catch(async (err) => {
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-            statusMessage: `Failed to invoke actions ${err.message} for batch ${batchData?.batchNumber}`
+            statusMessage: `Failed to invoke actions ${err.message} for batch ${params.batchNumber}`
         });
         logger.error('Failed to invoke actions', err);
         return {
-            batchNumber: batchData.batchNumber
+            batchNumber: params.batchNumber
         };
     });
 }

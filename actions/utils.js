@@ -124,6 +124,10 @@ function logMemUsageIter() {
     setTimeout(() => eventEmitter.emit('logMemUsage'), 400);
 }
 
+function getInstanceKey(params) {
+    return params?.fgRootFolder?.replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
+}
+
 module.exports = {
     getAioLogger,
     simulatePreviewPublish,
@@ -137,5 +141,6 @@ module.exports = {
     PUBLISH,
     logMemUsage,
     logMemUsageIter,
-    actInProgress
+    actInProgress,
+    getInstanceKey
 };

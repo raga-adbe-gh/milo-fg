@@ -16,13 +16,12 @@
 ************************************************************************* */
 
 const openwhisk = require('openwhisk');
-const filesLib = require('@adobe/aio-lib-files');
 const { getConfig } = require('../config');
 const {
     getAuthorizedRequestOption, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, logMemUsage, PROMOTE_ACTION
+    getAioLogger, logMemUsage, getInstanceKey, PROMOTE_ACTION
 } = require('../utils');
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
@@ -54,8 +53,8 @@ async function main(params) {
     } = params;
     appConfig.setAppConfig(params);
     const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder });
-    const filesSdk = await filesLib.init();
-    const batchManager = new BatchManager({ action: PROMOTE_ACTION, filesSdk });
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder }) });
+    await batchManager.init();
     // For current cleanup files before starting
     await batchManager.cleanupFiles();
     fgStatus.reset();
@@ -86,13 +85,11 @@ async function main(params) {
             });
             logger.info(payload);
 
-            // Ensure that inputs are added for references
-            await batchManager.addToManifest({
-                adminPageUri, projectExcelPath, fgRootFolder
+            // Finalize and Trigger N Track the batches
+            await batchManager.finalizeInstance({
+                adminPageUri, projectExcelPath, fgRootFolder, doPublish
             });
-
-            // Trigger N Track the batches
-            await batchManager.enableForTriggerNTrack();
+            logger.info('Instance finalized and started');
         }
     } catch (err) {
         await fgStatus.updateStatusToStateLib({
@@ -163,7 +160,6 @@ async function createBatch(batchManager) {
         // eslint-disable-next-line no-await-in-loop
         await batchManager.addFile(allFgFiles[i]);
     }
-    await batchManager.saveRemainig();
     payload = 'Completed creating batches';
     return payload;
 }

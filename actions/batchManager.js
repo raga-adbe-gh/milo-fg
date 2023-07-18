@@ -15,6 +15,7 @@
  * is strictly forbidden unless prior written permission is obtained
  * from Adobe.
  ************************************************************************* */
+const filesLib = require('@adobe/aio-lib-files');
 const Batch = require('./batch');
 const appConfig = require('./appConfig');
 const { getAioLogger } = require('./utils');
@@ -36,42 +37,74 @@ const logger = getAioLogger();
  *   There needs to be enhacement to handle this within this e.g. Batch execution stargergy should be implemented.
  */
 class BatchManager {
-    manifestData = { lastBatch: '', dtls: { batchesInfo: [] } };
+    filesSdk = null;
+
+    instanceData = { lastBatch: '', dtls: { batchesInfo: [] } };
 
     /**
      * Initializes the batch manager based on the action and sets up manifest files.
      * Default files in batch is 1000 and filePath is generate based on configuration and action
-     * @param {*} params { action: <Key to be used for the batchManager>, fileSdk: <file store interface> }
+     * @param {*} params { key: <Key to be used for the batchManager e.g. promoteAction>,
+     * instance: <insance name e.g. _milo_pink>}
      */
     constructor(params) {
         this.params = params || {};
         this.batches = [];
-        this.action = params.action;
-        this.filesSdk = params.filesSdk;
-        this.numBatchFiles = appConfig.getBatchConfig().numBatchFiles;
         this.batchFilesPath = appConfig.getBatchConfig()?.batchFilesPath;
-        this.bmPath = `${this.batchFilesPath}/${this.action}`;
+        this.key = params.key;
+        this.bmPath = `${this.batchFilesPath}/${this.key}`;
         this.bmTracker = `${this.bmPath}/milo_tracker.json`;
-        this.setInstanceKey(params);
+        this.initInstance(params);
     }
 
     /**
-     * Setup instance key e.g. Promote File is action and the fgRootPath (e.g. /milo-pink is key)
-     * @param {*} params {instanceKey: <e.g. fgRootPath>}
+     * Setup instance key e.g. Promote File is action and the fgRootPath (e.g. _milo_pink is key)
+     * @param {*} params {instance: <insance name e.g. _milo_pink> }
      * @returns this
      */
-    setInstanceKey(params) {
+    initInstance(params) {
         this.instanceKey = (params.instanceKey || 'default').replaceAll('/', '_');
-        this.filesSdkPath = `${this.batchFilesPath}/${this.action}/${this.instanceKey}`;
-        this.manifestFile = `${this.filesSdkPath}/milo_batching_manifest.json`;
+        this.instancePath = `${this.batchFilesPath}/${this.key}/${this.instanceKey}`;
+        this.instanceFile = `${this.instancePath}/milo_batching_instance.json`;
         return this;
     }
+
+    /**
+     * Initialize Batch Optionally
+     * @param {*} params {batchNumber: batchNumber }
+     * @returns this
+     */
+    initBatch(params) {
+        if (params?.batchNumber) {
+            this.currentBatchNumber = params.batchNumber;
+            this.currentBatch = new Batch({
+                ...this.params,
+                filesSdk: this.filesSdk,
+                instancePath: this.instancePath,
+                batchNumber: this.currentBatchNumber
+            });
+            this.batches.push(this.currentBatch);
+        }
+        return this;
+    }
+
+    async init(params) {
+        if (!this.filesSdk) this.filesSdk = await filesLib.init();
+        this.initBatch(params);
+        return this;
+    }
+
+    /**
+     * **********************************************************
+     * ************* TRACKER RELATED FUNCTIONS ******************
+     * **********************************************************
+     */
 
     /**
      * Structure
      * {
      *   instanceKeys: [_milo_pink],
-     *   '_milo_pink': {params: {<job params>}, batchNumber: <>, done: <true>, proceed: <true>}
+     *   '_milo_pink': {done: <true>, proceed: <true>}
      * }
      */
     async readBmTracker() {
@@ -97,34 +130,82 @@ class BatchManager {
         await this.filesSdk.write(this.bmTracker, JSON.stringify({ ...content, ...data }));
     }
 
-    async enableForTriggerNTrack(data) {
+    /**
+     * **********************************************************
+     * ************* INSTANCE RELATED FUNCTIONS ******************
+     * **********************************************************
+     */
+
+    /**
+     * Overwrite details in the instance file
+     * @param {*} data {lastBatch: <final batch>, dtls:[{batchNunber: <batch number>,
+     * activationId: <AIO action activation id>}]}
+     */
+    async writeToInstanceFile(data) {
+        await this.filesSdk.write(this.instanceFile, JSON.stringify(data));
+    }
+
+    /**
+     * Append to manifest file. The addToInstanceFile and this can be merged. Can be looked later.
+     * @param {*} params data similar to that of writeToManifest
+     */
+    async addToInstanceFile(params) {
+        const ifc = await this.getInstanceFileContent();
+        ifc.dtls = { ...ifc.dtls, ...params };
+        await this.writeToInstanceFile(ifc);
+    }
+
+    /**
+     * The file content of manifest files
+     * @returns File content of manifest file.
+     */
+    async getInstanceFileContent() {
+        const buffer = await this.filesSdk.read(this.instanceFile);
+        const data = buffer.toString();
+        logger.log(`Instance file content ${data}`);
+        return JSON.parse(buffer.toString());
+    }
+
+    /**
+     * **********************************************************
+     * ************** FLOW RELATED FUNCTIONS ********************
+     * **********************************************************
+     */
+    async resumeInstance() {
+        let instanceData = null;
+        const bmData = await this.readBmTracker();
+        logger.info(`Resume data ${JSON.stringify(bmData)}`);
+        const instanceKey = bmData.instanceKeys?.find((e) => !bmData[e].done && bmData[e].proceed);
+        if (bmData[instanceKey]) {
+            this.initInstance({ instanceKey });
+            instanceData = await this.getInstanceFileContent();
+        }
+        return instanceData;
+    }
+
+    async finalizeInstance(addlParams) {
+        // Save any pending files in the batch
+        await this.currentBatch?.savePendingFiles();
+
+        // If there are any additional parameters then add to the instance file.
+        if (addlParams) {
+            const ifc = await this.getInstanceFileContent();
+            ifc.dtls = { ...ifc.dtls, ...addlParams };
+            await this.writeToInstanceFile(ifc);
+        }
+
+        // Update to instance file to start the batch processing
         const params = {};
         params[`${this.instanceKey}`] = {
-            params: data || {},
-            batchNumber: 1,
             done: false,
             proceed: true,
         };
         await this.writeToBmTracker(params);
     }
 
-    async resumeBatch() {
-        let instanceData = null;
-        const bmData = await this.readBmTracker();
-        logger.info(`Resume data ${JSON.stringify(bmData)}`);
-        const instanceKey = bmData.instanceKeys?.find((e) => !bmData[e].done && bmData[e].proceed);
-        if (bmData[instanceKey]) {
-            this.setInstanceKey({ instanceKey });
-            this.setupCurrentBatch({ batchNumber: bmData[instanceKey].batchNumber });
-            instanceData = await this.getManifestContent();
-        }
-        return instanceData;
-    }
-
     async markComplete() {
         const params = {};
         params[`${this.instanceKey}`] = {
-            batchNumber: 1,
             done: true,
             proceed: false,
         };
@@ -133,7 +214,7 @@ class BatchManager {
 
     /** Cleanup files for the current action */
     async cleanupFiles() {
-        await this.filesSdk.delete(`${this.filesSdkPath}/`);
+        await this.filesSdk.delete(`${this.instancePath}/`);
     }
 
     /**
@@ -148,36 +229,10 @@ class BatchManager {
     }
 
     /**
-     * When the batches are created these are passed over to workers for processing.
-     * The worker has only information of batch and this method helps to
-     * build the battch manager from the batch information
-     * @param {*} params Batch paramerter which includes fields used by the constructor
-     * @returns BatchManager from the params
+     * **********************************************************
+     * ************** BATCH RELATED FUNCTIONS ********************
+     * **********************************************************
      */
-    static getBatchManagerForBatch(params) {
-        const batchManager = new BatchManager(params);
-        batchManager.setupCurrentBatch(params);
-        return batchManager;
-    }
-
-    /**
-     * This method is used by the worker action which is processing a single batch.
-     * Inorders to access interfacing this method helps to build the Batch and links with BatchManager
-     * @param {*} params Batch paramerter which includes fields used by the constructor
-     */
-    setupCurrentBatch(params) {
-        this.currentBatchNumber = params.batchNumber;
-        this.currentBatch = new Batch({
-            ...this.params,
-            filesSdk: this.filesSdk,
-            filesSdkPath: this.filesSdkPath,
-            batchNumber: this.currentBatchNumber,
-            numBatchFiles: this.numBatchFiles
-        });
-        logger.info(`Batch data ${JSON.stringify(this.currentBatch)}`);
-        logger.info(`Batch data ${this.currentBatch.getBatchNumber()}`);
-        this.batches.push(this.currentBatch);
-    }
 
     /**
      * This method is used when a batch overflows and a new batch needs to be created.
@@ -187,48 +242,14 @@ class BatchManager {
         this.currentBatchNumber = this.getNewBatchNumber();
         this.currentBatch = new Batch({
             filesSdk: this.filesSdk,
-            filesSdkPath: this.filesSdkPath,
-            batchNumber: this.currentBatchNumber,
-            numBatchFiles: this.numBatchFiles
+            instancePath: this.instancePath,
+            batchNumber: this.currentBatchNumber
         });
         this.batches.push(this.currentBatch);
-        this.manifestData.lastBatch = this.currentBatchNumber;
-        this.manifestData.dtls.batchesInfo = this.getBatchesInfo();
-        this.writeToManifest(this.manifestData);
-    }
-
-    getBatchesInfo() {
-        return this.batches.map((b) => ({ batchNumber: b.getBatchNumber() }));
-    }
-
-    /**
-     * Overwrite details to manifest
-     * @param {*} data {lastBatch: <final batch>, dtls:[{batchNunber: <batch number>,
-     * activationId: <AIO action activation id>}]}
-     */
-    async writeToManifest(data) {
-        await this.filesSdk.write(this.manifestFile, JSON.stringify(data));
-    }
-
-    /**
-     * Append to manifest file. The writeToManifest and this can be merged. Can be looked later.
-     * @param {*} params data similar to that of writeToManifest
-     */
-    async addToManifest(params) {
-        const mfc = await this.getManifestContent();
-        mfc.dtls = { ...mfc.dtls, ...params };
-        await this.writeToManifest(mfc);
-    }
-
-    /**
-     * The file content of manifest files
-     * @returns File content of manifest file.
-     */
-    async getManifestContent() {
-        const buffer = await this.filesSdk.read(this.manifestFile);
-        const data = buffer.toString();
-        logger.log(`Manifest file content ${data}`);
-        return JSON.parse(buffer.toString());
+        this.instanceData.lastBatch = this.currentBatchNumber;
+        this.instanceData.dtls.batchesInfo = this.getBatchesInfo();
+        this.writeToInstanceFile(this.instanceData);
+        return this.currentBatch;
     }
 
     /**
@@ -239,13 +260,17 @@ class BatchManager {
         return (this.currentBatch?.getBatchNumber() || 0) + 1;
     }
 
+    getBatchesInfo() {
+        return this.batches.map((b) => ({ batchNumber: b.getBatchNumber() }));
+    }
+
     /**
      * This adds the files metadata to Batch and create a new if it overflows
      * @param {*} file  File path
      * @param {*} retryCount after an overflow a new batch is created and this is called again.
      */
     async addFile(file, retryCount) {
-        if (this.filesSdk && this.filesSdkPath) {
+        if (this.filesSdk && this.instancePath) {
             if (this.currentBatch && this.currentBatch.canAddFile()) {
                 await this.currentBatch.addFile(file);
             } else if (!retryCount) {
@@ -254,10 +279,6 @@ class BatchManager {
                 await this.addFile(file, 1);
             }
         }
-    }
-
-    async saveRemainig() {
-        this.currentBatch?.savePendingFiles();
     }
 
     /**

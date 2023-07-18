@@ -35,8 +35,8 @@ class AppConfig {
         this.configMap.certThumbprint = params.certThumbprint;
         this.configMap.skipInProg = (params.skipInProgressCheck || '').toLowerCase() === 'true';
         this.configMap.batchFilesPath = params.batchFilesPath || 'milo-process/batching';
-        this.configMap.numBatchFiles = parseInt(params.numBatchFiles || '1000', 10);
-        this.configMap.numBulkPerBatch = parseInt(params.numBulkPerBatch || '20', 10);
+        this.configMap.maxFilesPerBatch = parseInt(params.maxFilesPerBatch || '200', 10);
+        this.configMap.numBulkReq = parseInt(params.numBulkReq || '20', 10);
         this.extractPrivateKey();
     }
 
@@ -87,9 +87,12 @@ class AppConfig {
     getBatchConfig() {
         return {
             batchFilesPath: this.configMap.batchFilesPath,
-            numBatchFiles: this.configMap.numBatchFiles,
-            numBulkPerBatch: this.configMap.numBulkPerBatch
+            maxFilesPerBatch: this.configMap.maxFilesPerBatch,
         };
+    }
+
+    getNumBulkReq() {
+        return this.numBulkReq;
     }
 }
 

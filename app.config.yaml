@@ -20,7 +20,7 @@ application:
           certKey: $CERT_KEY
           certThumbprint: $CERT_THUMB_PRINT
           batchFilesPath: $BATCH_FILES_PATH
-          numBatchFiles: $NUM_BATCH_FILES
+          maxFilesPerBatch: $MAX_FILES_PER_BATCH
           numBulkPerBatch: $NUM_BULK_PER_BATCH
         actions:
           copy:
@@ -44,15 +44,6 @@ application:
             runtime: nodejs:16
             inputs:
               LOG_LEVEL: debug
-          promote-batch:
-            function: actions/promote/promoteBatch.js
-            web: 'no'
-            runtime: nodejs:16
-            inputs:
-              LOG_LEVEL: debug
-            limits:
-              timeout: 1900000
-              memory: 1024
           promote-create-batch:
             function: actions/promote/createBatch.js
             web: 'no'
@@ -72,14 +63,6 @@ application:
               timeout: 3600000
               memorySize: 1024
               concurrency: 5
-          promote-tracker:
-            function: actions/promote/tracker.js
-            web: 'no'
-            runtime: nodejs:16
-            inputs:
-              LOG_LEVEL: debug
-            limits:
-              timeout: 3600000
           promote-trigger-n-track:
             function: actions/promote/triggerNTrack.js
             web: 'no'
@@ -94,11 +77,17 @@ application:
             runtime: nodejs:16
             inputs:
               LOG_LEVEL: debug
+          maint:
+            function: actions/maint/maint.js
+            web: 'yes'
+            runtime: nodejs:16
+            inputs:
+              LOG_LEVEL: debug              
         triggers:
           everyMin:
             feed: /whisk.system/alarms/interval
             inputs: 
-              minutes: 2
+              minutes: 1
         rules:
           everyMinRule:
             trigger: everyMin

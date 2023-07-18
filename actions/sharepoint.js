@@ -26,6 +26,7 @@ const APP_USER_AGENT = 'ISV|Adobe|MiloFloodgate/0.1.0';
 const BATCH_REQUEST_LIMIT = 20;
 const BATCH_DELAY_TIME = 200;
 const NUM_REQ_THRESHOLD = 5;
+const RETRY_ON_CF = 3;
 const TOO_MANY_REQUESTS = '429';
 // Added for debugging rate limit headers
 const LOG_RESP_HEADER = false;
@@ -356,7 +357,7 @@ async function updateExcelTable(excelPath, tableName, values) {
 // fetch-with-retry added to check for Sharepoint RateLimit headers and 429 errors and to handle them accordingly.
 async function fetchWithRetry(apiUrl, options, retryCounts) {
     let retryCount = retryCounts || 0;
-
+    const logger = getAioLogger();
     return new Promise((resolve, reject) => {
         const currentTime = Date.now();
         if (retryCount > NUM_REQ_THRESHOLD) {
@@ -372,6 +373,7 @@ async function fetchWithRetry(apiUrl, options, retryCounts) {
                 const retryAfter = resp.headers.get('ratelimit-reset') || resp.headers.get('retry-after') || 0;
                 if ((resp.headers.get('test-retry-status') === TOO_MANY_REQUESTS) || (resp.status === TOO_MANY_REQUESTS)) {
                     nextCallAfter = Date.now() + retryAfter * 1000;
+                    logger.info(`Retry ${nextCallAfter}`);
                     fetchWithRetry(apiUrl, options, retryCount)
                         .then((newResp) => resolve(newResp))
                         .catch((err) => reject(err));
@@ -379,7 +381,17 @@ async function fetchWithRetry(apiUrl, options, retryCounts) {
                     nextCallAfter = retryAfter ? Math.max(Date.now() + retryAfter * 1000, nextCallAfter) : nextCallAfter;
                     resolve(resp);
                 }
-            }).catch((err) => reject(err));
+            }).catch((err) => {
+                logger.warn(`Connection error ${apiUrl} with ${JSON.stringify(err)}`);
+                if (1 === 0 && err && err.code === 'ECONNRESET' && retryCount < NUM_REQ_THRESHOLD) {
+                    logger.info('Retry ECONNRESET');
+                    nextCallAfter = Date.now() + RETRY_ON_CF * 1000;
+                    return fetchWithRetry(apiUrl, options, retryCount)
+                        .then((newResp) => resolve(newResp))
+                        .catch((err2) => reject(err2));
+                }
+                return reject(err);
+            });
         }
     });
 }

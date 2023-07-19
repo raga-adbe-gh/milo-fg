@@ -47,7 +47,7 @@ async function main(args) {
         const filesSdk = await filesLib.init();
         const maintAction = new MaintAction();
         maintAction.setFilesSdk(filesSdk);
-        if (params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
+        if (1 === 0 && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
         if (params.listFilePath !== undefined) payload.fileList = await maintAction.listFiles(params.listFilePath);
         if (params.dataFile !== undefined) payload.fileData = (await maintAction.dataFile(params.dataFile))?.toString();
     } catch (err) {

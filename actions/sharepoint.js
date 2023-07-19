@@ -383,7 +383,7 @@ async function fetchWithRetry(apiUrl, options, retryCounts) {
                 }
             }).catch((err) => {
                 logger.warn(`Connection error ${apiUrl} with ${JSON.stringify(err)}`);
-                if (1 === 0 && err && err.code === 'ECONNRESET' && retryCount < NUM_REQ_THRESHOLD) {
+                if (err && err.code === 'ECONNRESET' && retryCount < NUM_REQ_THRESHOLD) {
                     logger.info('Retry ECONNRESET');
                     nextCallAfter = Date.now() + RETRY_ON_CF * 1000;
                     return fetchWithRetry(apiUrl, options, retryCount)

@@ -32,11 +32,14 @@ const logger = getAioLogger();
 const MAX_CHILDREN = 5000;
 
 /**
- * This is action interfacing method. The worker is split into two promoteBatch and worker.
- * This promoteBatch has following
+ * This createBatch has following functions
  * 1. Searches for the files to be promoted (using msal search api)
- * 2. Using the batchmanger adds the files and this batchmanager splits into batches.
- * The batch information is also stored in manifest files and the actions are triggered
+ * 2. Splits these files to be promoted into batches based on maxFilesPerBatch parameter
+ * The batch information are stored across files
+ * promoteAction/milo_tracker.json - Tracker file that stores the batching instances that needs to be processed. e.g. milo_pink or cc_pink
+ * promoteAction/instance<instance e.g. _milo_pink>/milo_batching_instance.json - This stores the information of the batches and respective activation ids
+ * promoteAction/instance_milo_pink/batch_<n>>/batch_info.json - This stores the files that needs to be processed by the batch
+ * promoteAction/instance_milo_pink/batch_<n>/results.json - After the batch is process is completed results are stored (e.g. failed promotes)
  * Following parameters are used and needs to be tweaked
  * 1. Number of files per batch - Assume 10k
  * 2. Number of activation per container - Assume 5

@@ -166,7 +166,7 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         await delay(DELAY_TIME_PROMOTE);
     }
 
-    payload = 'Completed promoting all documents in the pink folder';
+    payload = 'Completed promoting all documents in the batch';
     logger.info(payload);
 
     logger.info('Previewing promoted files.');
@@ -192,7 +192,7 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         .map((status) => status.path);
     const failedPublishes = publishStatuses.filter((status) => !status.success)
         .map((status) => status.path);
-    logger.info(`Batch ${currentBatch.getBatchNumber()}, Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length}`);
+    logger.info(`Batch-${currentBatch.getBatchNumber()}, Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length}`);
 
     if (failedPromotes.length > 0 || failedPreviews.length > 0 || failedPublishes.length > 0) {
         payload = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
@@ -201,11 +201,11 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         currentBatch.writeResults({ failedPromotes, failedPreviews, failedPublishes });
         throw new Error(payload);
     } else {
-        payload = 'Promoted floodgate tree successfully.';
-        logger.info('Promoted floodgate tree successfully.');
+        payload = 'Promoted floodgate for batch successfully.';
+        logger.info(payload);
     }
     logMemUsage();
-    payload = 'All tasks for Floodgate Promote completed';
+    payload = 'All tasks for floodgate promote of batch is completed';
     return payload;
 
     async function previewOrPublishPages(operation) {

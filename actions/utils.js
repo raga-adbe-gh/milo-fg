@@ -99,7 +99,6 @@ async function actInProgress(ow, actId, svInProg = true) {
             owAct = await ow.activations.get({
                 activationId: actId
             });
-            // logger.info(`Job status response for ${actId} is ${JSON.stringify(owAct)}`);
             return owAct?.response?.status ? !finStatuses.includes(owAct.response.status) : svInProg;
         } catch (err) {
             logger.error(err?.stack);

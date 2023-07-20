@@ -35,7 +35,6 @@ async function main(params) {
     const batchManager = new BatchManager({ key: PROMOTE_ACTION });
     await batchManager.init();
     const instanceContent = await batchManager.resumeInstance();
-    // logger.info(`Instance data is ${JSON.stringify(instanceContent)}`);
     if (!instanceContent || !instanceContent.dtls) {
         return { body: 'None to run!' };
     }
@@ -75,11 +74,9 @@ async function main(params) {
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
                 statusMessage: payload
             });
-            // logger.info(`Activation to check ${JSON.stringify(batchesInfo)}`);
 
             // Check to see all batches are complete
             const batchCheckResp = await checkBatchesInProg(fgRootFolder, batchesInfo, ow);
-            // logger.info(`Batch check response ${JSON.stringify(batchCheckResp)}`);
             const { anyInProg, allDone } = batchCheckResp;
             // write to manifest
             await batchManager.writeToInstanceFile(instanceContent);
@@ -206,7 +203,6 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
     const failedPublishes = [];
     for (let i = 0; i < actDtls?.length || 0; i += 1) {
         batchNumber = actDtls[i].batchNumber;
-        // logger.info(`Batch check is ${JSON.stringify(actDtls[i])}`);
         try {
             batchManager.initBatch({ batchNumber });
             const batch = await batchManager.getCurrentBatch();

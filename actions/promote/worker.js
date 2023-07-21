@@ -210,10 +210,10 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
 
     async function previewOrPublishPages(operation) {
         const statuses = [];
-        for (let i = 0; i < promoteStatuses.length; i += 1) {
-            if (promoteStatuses[i].success) {
+        for (let ip = 0; ip < promoteStatuses.length; ip += 1) {
+            if (promoteStatuses[ip].success) {
                 // eslint-disable-next-line no-await-in-loop
-                const result = await simulatePreviewPublish(handleExtension(promoteStatuses[i].srcPath), operation, 1, false);
+                const result = await simulatePreviewPublish(handleExtension(promoteStatuses[ip].srcPath), operation, 1, false);
                 statuses.push(result);
             }
             await delay();

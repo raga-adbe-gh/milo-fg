@@ -15,7 +15,6 @@
 * from Adobe.
 ************************************************************************* */
 
-const openwhisk = require('openwhisk');
 const { getConfig } = require('../config');
 const {
     getAuthorizedRequestOption, fetchWithRetry
@@ -48,7 +47,6 @@ const MAX_CHILDREN = 5000;
  * and 5 container total is about 0.5gb and below treshold and can be tweaked.
  */
 async function main(params) {
-    const ow = openwhisk();
     logMemUsage();
     let payload;
     const {

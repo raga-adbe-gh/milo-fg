@@ -77,9 +77,10 @@ async function main(params) {
 
             // Check to see all batches are complete
             const batchCheckResp = await checkBatchesInProg(fgRootFolder, batchesInfo, ow);
-            const { anyInProg, allDone } = batchCheckResp;
-            // write to manifest
-            await batchManager.writeToInstanceFile(instanceContent);
+            const { anyInProg, allDone, stateChanged } = batchCheckResp;
+            if (stateChanged) {
+                await batchManager.writeToInstanceFile(instanceContent);
+            }
 
             // Collect status and mark as complete
             if (allDone) {
@@ -100,9 +101,8 @@ async function main(params) {
                         fgStatus);
                     nextItem.activationId = newActDtls?.activationId;
                 }
+                await batchManager.writeToInstanceFile(instanceContent);
             }
-            // write to manifest - This will now have activation id
-            await batchManager.writeToInstanceFile(instanceContent);
 
             payload = 'Promoted trigger and track completed.';
             logger.info(payload);
@@ -137,6 +137,7 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
     let batchInProg = false;
     let allDone = true;
     let counter = 0;
+    let stateChanged = false;
     for (; counter < actDtls?.length && !batchInProg; counter += 1) {
         const { batchNumber, activationId, done } = actDtls[counter];
         if (activationId && !done) {
@@ -156,8 +157,11 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
         } else {
             allDone &&= done;
         }
+
+        stateChanged ||= (done === undefined || done !== actDtls[counter].done);
     }
-    return { anyInProg: batchInProg, allDone };
+
+    return { anyInProg: batchInProg, allDone, stateChanged };
 }
 
 async function triggerActivation(ow, params, fgStatus) {

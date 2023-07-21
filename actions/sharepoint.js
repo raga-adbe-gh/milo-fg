@@ -22,6 +22,7 @@ const { getAioLogger } = require('./utils');
 const appConfig = require('./appConfig');
 const sharepointAuth = require('./sharepointAuth');
 
+const SP_CONN_ERR_LST = ['ETIMEDOUT', 'ECONNRESET'];
 const APP_USER_AGENT = 'ISV|Adobe|MiloFloodgate/0.1.0';
 const BATCH_REQUEST_LIMIT = 20;
 const BATCH_DELAY_TIME = 200;
@@ -383,8 +384,8 @@ async function fetchWithRetry(apiUrl, options, retryCounts) {
                 }
             }).catch((err) => {
                 logger.warn(`Connection error ${apiUrl} with ${JSON.stringify(err)}`);
-                if (err && err.code === 'ECONNRESET' && retryCount < NUM_REQ_THRESHOLD) {
-                    logger.info('Retry ECONNRESET');
+                if (err && SP_CONN_ERR_LST.includes(err.code) && retryCount < NUM_REQ_THRESHOLD) {
+                    logger.info(`Retry ${SP_CONN_ERR_LST}`);
                     nextCallAfter = Date.now() + RETRY_ON_CF * 1000;
                     return fetchWithRetry(apiUrl, options, retryCount)
                         .then((newResp) => resolve(newResp))

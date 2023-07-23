@@ -17,23 +17,26 @@
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 const filesLib = require('@adobe/aio-lib-files');
-const { getAioLogger } = require('../utils');
+const { getAioLogger, PROMOTE_ACTION } = require('../utils');
 const appConfig = require('../appConfig');
 const { isAuthorizedUser } = require('../sharepoint');
 const sharepointAuth = require('../sharepointAuth');
+const FgStatus = require('../fgStatus');
 
-const ENABLE = true;
+const ENABLE = false;
 const logger = getAioLogger();
 
 // Maintainance functions
 async function main(args) {
     let payload = {};
     try {
-        if (!ENABLE) throw new Error('Permission Denied');
         const params = {
             deleteFilePath: args.deleteFilePath,
             listFilePath: args.listFilePath,
-            dataFile: args.dataFile
+            dataFile: args.dataFile,
+            stateStoreKey: args.stateStoreKey,
+            clearStateStore: args.clearStateStore,
+            groups: args.groups
         };
         appConfig.setAppConfig(args);
         const accountDtls = await isAuthorizedUser(args.spToken);
@@ -47,9 +50,14 @@ async function main(args) {
         const filesSdk = await filesLib.init();
         const maintAction = new MaintAction();
         maintAction.setFilesSdk(filesSdk);
-        if (1 === 0 && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
         if (params.listFilePath !== undefined) payload.fileList = await maintAction.listFiles(params.listFilePath);
-        if (params.dataFile !== undefined) payload.fileData = (await maintAction.dataFile(params.dataFile))?.toString();
+        if (params.dataFile !== undefined) payload.fileData = await maintAction.dataFile(params.dataFile);
+        if (params.stateStoreKey !== undefined) payload.stateStore = await maintAction.stateStoreKey(params.stateStoreKey);
+        if (params.groups !== undefined) payload.groups = await maintAction.getGroupUsers(args.groups, args.spToken);
+
+        // Admin function
+        if (ENABLE && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
+        if (ENABLE && params.clearStateStore !== undefined) payload.stateStore = (await maintAction.clearStateStore(params.clearStateStore));
     } catch (err) {
         logger.error(err);
         payload.error = err;
@@ -85,7 +93,41 @@ class MaintAction {
     async dataFile(dataFile) {
         const file = `${this.filesSdkPath}/${dataFile}`;
         logger.info(`Contents for data file ${file}`);
-        return this.filesSdk.read(file);
+        // All files are json read the file
+        let rawd; let jsond;
+        try {
+            rawd = await this.filesSdk.read(file);
+            jsond = JSON.parse(rawd);
+        } catch (err) {
+            logger.info(`Error while reading/parsing ${file}`);
+        }
+        return jsond || rawd?.toString();
+    }
+
+    async stateStoreKey(key) {
+        // Split by comma (action, statusKey)
+        const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: key });
+        const data = await fgStatus.getStatusFromStateLib();
+        return data;
+    }
+
+    async clearStateStore(key) {
+        // Split by comma (action, statusKey)
+        const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: key });
+        await fgStatus.clearState(true);
+        return {};
+    }
+
+    async getGroupUsers(grpId, tkn) {
+        const at = tkn || await sharepointAuth.getAccessToken();
+        return fetch(
+            `https://graph.microsoft.com/v1.0/me/memberOf?$count=true&$filter=id eq '${grpId}'`,
+            {
+                headers: {
+                    Authorization: `Bearer ${at}`
+                }
+            }
+        ).then((resp) => resp.json());
     }
 }
 

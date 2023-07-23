@@ -180,7 +180,7 @@ class FgStatus {
      * Save the store status object into libstate
      */
     async updateStateStatus() {
-        const hash = crypto.createHash('md5').update(this.storeKey).digest('hex');
+        const hash = this.getHash();
         this.logger.info(`Adding status to aio state lib with hash -- ${hash} - ${JSON.stringify(this.storeStatus)}`);
         // get the hash value if its available
         try {
@@ -195,9 +195,22 @@ class FgStatus {
         }
     }
 
-    reset() {
-        // Reset the status in state
-        this.updateStateStatus(this.storeStatusTmpl);
+    getHash() {
+        return crypto.createHash('md5').update(this.storeKey).digest('hex');
+    }
+
+    async clearState(remove) {
+        if (remove) {
+            const hash = this.getHash();
+            try {
+                const state = await stateLib.init();
+                await state.delete(hash);
+            } catch (err) {
+                this.logger.error(`Error deleting from state store ${err}`);
+            }
+        } else {
+            await this.updateStateStatus(this.storeStatusTmpl);
+        }
     }
 }
 

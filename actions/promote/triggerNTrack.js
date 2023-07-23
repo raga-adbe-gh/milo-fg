@@ -55,7 +55,6 @@ async function main(params) {
     });
 
     const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder });
-
     try {
         if (!fgRootFolder) {
             payload = 'Required data is not available to proceed with FG Promote action.';
@@ -70,21 +69,20 @@ async function main(params) {
         } else {
             urlInfo.setUrlInfo(adminPageUri);
             payload = 'Getting status of all reference activation.';
-            fgStatus.updateStatusToStateLib({
+            await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
                 statusMessage: payload
             });
 
             // Check to see all batches are complete
             const batchCheckResp = await checkBatchesInProg(fgRootFolder, batchesInfo, ow);
-            const { anyInProg, allDone, stateChanged } = batchCheckResp;
-            if (stateChanged) {
-                await batchManager.writeToInstanceFile(instanceContent);
-            }
+            const { anyInProg, allDone } = batchCheckResp;
+            await batchManager.writeToInstanceFile(instanceContent);
 
             // Collect status and mark as complete
             if (allDone) {
                 await completePromote(projectExcelPath, batchesInfo, batchManager, fgStatus);
+                await batchManager.writeToInstanceFile(instanceContent);
             } else if (!anyInProg) {
                 // Trigger next activation
                 const nextItem = batchesInfo.find((b) => !b.activationId);
@@ -112,7 +110,7 @@ async function main(params) {
         payload = err;
         // In case of error log status with end time
         try {
-            fgStatus.updateStatusToStateLib({
+            await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
                 statusMessage: err.message,
             });
@@ -137,7 +135,6 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
     let batchInProg = false;
     let allDone = true;
     let counter = 0;
-    let stateChanged = false;
     for (; counter < actDtls?.length && !batchInProg; counter += 1) {
         const { batchNumber, activationId, done } = actDtls[counter];
         if (activationId && !done) {
@@ -157,11 +154,9 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
         } else {
             allDone &&= done;
         }
-
-        stateChanged ||= (done === undefined || done !== actDtls[counter].done);
     }
 
-    return { anyInProg: batchInProg, allDone, stateChanged };
+    return { anyInProg: batchInProg, allDone };
 }
 
 async function triggerActivation(ow, params, fgStatus) {

@@ -65,11 +65,14 @@ async function main(args) {
                 storeValue.action.message = payload;
                 payload = storeValue;
             } else {
+                fgStatus.clearState();
                 payload = await fgStatus.updateStatusToStateLib({
                     status: FgStatus.PROJECT_STATUS.STARTED,
                     statusMessage: 'Triggering promote action',
                     batches: {}
                 });
+                logger.info(`FGStatus store ${await fgStatus.getStatusFromStateLib()}`);
+
                 return ow.actions.invoke({
                     name: 'milo-fg/promote-create-batch',
                     blocking: false, // this is the flag that instructs to execute the worker asynchronous
@@ -104,7 +107,7 @@ async function main(args) {
         }
     } catch (err) {
         logger.error(err);
-        payload = fgStatus.updateStatusToStateLib({
+        payload = await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.FAILED,
             statusMessage: `Failed to invoke actions ${err.message}`
         });

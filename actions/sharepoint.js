@@ -123,7 +123,8 @@ async function getFile(doc) {
 }
 
 async function getFileUsingDownloadUrl(downloadUrl) {
-    const response = await fetchWithRetry(downloadUrl);
+    const options = await getAuthorizedRequestOption({ json: false });
+    const response = await fetchWithRetry(downloadUrl, options);
     if (response) {
         return response.blob();
     }

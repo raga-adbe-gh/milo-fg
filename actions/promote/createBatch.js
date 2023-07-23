@@ -58,7 +58,6 @@ async function main(params) {
     await batchManager.init();
     // For current cleanup files before starting
     await batchManager.cleanupFiles();
-    fgStatus.reset();
     try {
         if (!fgRootFolder) {
             payload = 'Required data is not available to proceed with FG Promote action.';
@@ -107,21 +106,36 @@ async function main(params) {
 }
 
 /**
- * Find all files in the pink tree to promote.
+ * Find all files in the pink tree to promote. Add to batches
  */
-async function findAllFiles() {
+async function createBatch(batchManager) {
     const { sp } = await getConfig();
     const baseURI = `${sp.api.excel.update.fgBaseURI}`;
     const rootFolder = baseURI.split('/').pop();
     const options = await getAuthorizedRequestOption({ method: 'GET' });
     // Temporarily restricting the iteration for promote to under /drafts folder only
-    return findAllFloodgatedFiles(baseURI, options, rootFolder, [], ['/drafts']);
+    const promoteIgnoreList = appConfig.getPromoteIgnorePaths();
+    logger.info(`Promote ignore list: ${promoteIgnoreList}`);
+
+    return findAndBatchFGFiles({
+        baseURI,
+        options,
+        rootFolder,
+        fgFiles: [],
+        fgFolders: ['/drafts'],
+        promoteIgnoreList,
+        downloadBaseURI: sp.api.file.download.baseURI
+    }, batchManager);
 }
 
 /**
- * Iteratively finds all files under a specified root folder.
+ * Iteratively finds all files under a specified root folder. Add them to batches
  */
-async function findAllFloodgatedFiles(baseURI, options, rootFolder, fgFiles, fgFolders) {
+async function findAndBatchFGFiles(
+    {
+        baseURI, options, rootFolder, fgFolders, promoteIgnoreList, downloadBaseURI
+    }, batchManager
+) {
     while (fgFolders.length !== 0) {
         const uri = `${baseURI}${fgFolders.shift()}:/children?$top=${MAX_CHILDREN}`;
         // eslint-disable-next-line no-await-in-loop
@@ -131,38 +145,24 @@ async function findAllFloodgatedFiles(baseURI, options, rootFolder, fgFiles, fgF
             const json = await res.json();
             // eslint-disable-next-line no-await-in-loop
             const driveItems = json.value;
-            driveItems?.forEach((item) => {
+            for (let di = 0; di < driveItems?.length; di += 1) {
+                const item = driveItems[di];
                 const itemPath = `${item.parentReference.path.replace(`/drive/root:/${rootFolder}`, '')}/${item.name}`;
-                if (item.folder) {
-                    // it is a folder
-                    fgFolders.push(itemPath);
+                if (!promoteIgnoreList?.includes(itemPath)) {
+                    if (item.folder) {
+                        // it is a folder
+                        fgFolders.push(itemPath);
+                    } else {
+                        const downloadUrl = `${downloadBaseURI}/${item.id}/content`;
+                        // eslint-disable-next-line no-await-in-loop
+                        await batchManager.addFile({ fileDownloadUrl: downloadUrl, filePath: itemPath });
+                    }
                 } else {
-                    const downloadUrl = item['@microsoft.graph.downloadUrl'];
-                    fgFiles.push({ fileDownloadUrl: downloadUrl, filePath: itemPath });
+                    logger.info(`Ignored from promote: ${itemPath}`);
                 }
-            });
+            }
         }
     }
-
-    return fgFiles;
-}
-
-/**
- * Create batches based on configs and files to process
- * @param {*} batchManager BatchManager for creating batches.
- */
-async function createBatch(batchManager) {
-    let payload = 'Getting all floodgated files to promote.';
-    // Iterate the floodgate tree and get all files to promote
-    const allFgFiles = await findAllFiles();
-    logger.info(`Total files to process ${allFgFiles?.length}`);
-    // create batches to process the data
-    for (let i = 0; i < allFgFiles.length; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        await batchManager.addFile(allFgFiles[i]);
-    }
-    payload = 'Completed creating batches';
-    return payload;
 }
 
 exports.main = main;

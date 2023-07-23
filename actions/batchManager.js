@@ -53,7 +53,7 @@ class BatchManager {
         this.batchFilesPath = appConfig.getBatchConfig()?.batchFilesPath;
         this.key = params.key;
         this.bmPath = `${this.batchFilesPath}/${this.key}`;
-        this.bmTracker = `${this.bmPath}/milo_tracker.json`;
+        this.bmTracker = `${this.bmPath}/tracker.json`;
         this.initInstance(params);
     }
 
@@ -65,7 +65,7 @@ class BatchManager {
     initInstance(params) {
         this.instanceKey = (params.instanceKey || 'default').replaceAll('/', '_');
         this.instancePath = `${this.batchFilesPath}/${this.key}/instance${this.instanceKey}`;
-        this.instanceFile = `${this.instancePath}/milo_batching_instance.json`;
+        this.instanceFile = `${this.instancePath}/instance_info.json`;
         return this;
     }
 
@@ -173,7 +173,6 @@ class BatchManager {
     async resumeInstance() {
         let instanceData = null;
         const bmData = await this.readBmTracker();
-        logger.info(`Resume data ${JSON.stringify(bmData)}`);
         const instanceKey = bmData.instanceKeys?.find((e) => !bmData[e].done && bmData[e].proceed);
         if (bmData[instanceKey]) {
             this.initInstance({ instanceKey });

@@ -28,7 +28,7 @@ class AppConfig {
         this.configMap.fgShareUrl = params.fgShareUrl;
         this.configMap.rootFolder = params.rootFolder;
         this.configMap.fgRootFolder = params.fgRootFolder;
-        this.configMap.promoteIgnorePaths = params.promoteIgnorePaths;
+        this.configMap.promoteIgnorePaths = params.promoteIgnorePaths || [];
         this.configMap.clientId = params.clientId;
         this.configMap.tenantId = params.tenantId;
         this.configMap.certPassword = params.certPassword;

@@ -34,38 +34,37 @@ const ENABLE_HLX_PREVIEW = false;
 async function main(params) {
     const logger = getAioLogger();
     logMemUsage();
-    let payload;
-    const {
-        adminPageUri, projectExcelPath, fgRootFolder, doPublish, batchNumber
-    } = params;
+    let stepMsg;
+    const { batchNumber } = params;
     appConfig.setAppConfig(params);
     // Tracker uses the below hence change here might need change in tracker as well.
-    const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, statusKey: `${fgRootFolder}~Batch_${batchNumber}` });
-    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder }) });
+    const payload = appConfig.getPayload();
+    const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, statusKey: `${payload.fgRootFolder}~Batch_${payload.batchNumber}` });
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: payload.fgRootFolder }) });
     await batchManager.init({ batchNumber });
     try {
-        if (!fgRootFolder) {
-            payload = 'Required data is not available to proceed with FG Promote action.';
-            logger.error(payload);
-        } else if (!adminPageUri || !projectExcelPath) {
-            payload = 'Required data is not available to proceed with FG Promote action.';
+        if (!payload.fgRootFolder) {
+            stepMsg = 'Required data is not available to proceed with FG Promote action.';
+            logger.error(stepMsg);
+        } else if (!payload.adminPageUri || !payload.projectExcelPath) {
+            stepMsg = 'Required data is not available to proceed with FG Promote action.';
             await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.FAILED,
-                statusMessage: payload
+                statusMessage: stepMsg
             });
-            logger.error(payload);
+            logger.error(stepMsg);
         } else {
-            urlInfo.setUrlInfo(adminPageUri);
-            payload = 'Getting all files to be promoted.';
+            urlInfo.setUrlInfo(payload.adminPageUri);
+            stepMsg = 'Getting all files to be promoted.';
             await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload
+                statusMessage: stepMsg
             });
-            logger.info(payload);
-            payload = await promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager);
+            logger.info(stepMsg);
+            stepMsg = await promoteFloodgatedFiles(payload.doPublish, batchManager);
             await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.COMPLETED,
-                statusMessage: payload
+                statusMessage: stepMsg
             });
         }
     } catch (err) {
@@ -74,11 +73,11 @@ async function main(params) {
             statusMessage: err.message,
         });
         logger.error(err);
-        payload = err;
+        stepMsg = err;
     }
 
     return {
-        body: payload,
+        body: stepMsg,
     };
 }
 
@@ -113,7 +112,7 @@ async function promoteCopy(srcPath, destinationFolder) {
     return copySuccess;
 }
 
-async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager) {
+async function promoteFloodgatedFiles(doPublish, batchManager) {
     const logger = getAioLogger();
 
     async function promoteFile(batchItem) {
@@ -142,7 +141,7 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
     }
 
     let i = 0;
-    let payload = 'Getting all floodgated files to promote.';
+    let stepMsg = 'Getting all floodgated files to promote.';
     // Get the batch files using the batchmanager for the assigned batch and process them
     const currentBatch = await batchManager.getCurrentBatch();
     const allFloodgatedFiles = await currentBatch?.getFiles();
@@ -166,23 +165,23 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
         await delay(DELAY_TIME_PROMOTE);
     }
 
-    payload = 'Completed promoting all documents in the batch';
-    logger.info(payload);
+    stepMsg = 'Completed promoting all documents in the batch';
+    logger.info(stepMsg);
 
     logger.info('Previewing promoted files.');
     let previewStatuses = [];
     let publishStatuses = [];
     if (ENABLE_HLX_PREVIEW) {
         previewStatuses = await previewOrPublishPages(PREVIEW);
-        payload = 'Completed generating Preview for promoted files.';
-        logger.info(payload);
+        stepMsg = 'Completed generating Preview for promoted files.';
+        logger.info(stepMsg);
 
         if (doPublish) {
-            payload = 'Publishing promoted files.';
-            logger.info(payload);
+            stepMsg = 'Publishing promoted files.';
+            logger.info(stepMsg);
             publishStatuses = await previewOrPublishPages(PUBLISH);
-            payload = 'Completed Publishing for promoted files';
-            logger.info(payload);
+            stepMsg = 'Completed Publishing for promoted files';
+            logger.info(stepMsg);
         }
     }
 
@@ -195,18 +194,18 @@ async function promoteFloodgatedFiles(projectExcelPath, doPublish, batchManager)
     logger.info(`Batch-${currentBatch.getBatchNumber()}, Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length}`);
 
     if (failedPromotes.length > 0 || failedPreviews.length > 0 || failedPublishes.length > 0) {
-        payload = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
-        logger.info(payload);
+        stepMsg = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
+        logger.info(stepMsg);
         // Write the information to batch manifest
         currentBatch.writeResults({ failedPromotes, failedPreviews, failedPublishes });
-        throw new Error(payload);
+        throw new Error(stepMsg);
     } else {
-        payload = 'Promoted floodgate for batch successfully.';
-        logger.info(payload);
+        stepMsg = 'Promoted floodgate for batch successfully.';
+        logger.info(stepMsg);
     }
     logMemUsage();
-    payload = 'All tasks for floodgate promote of batch is completed';
-    return payload;
+    stepMsg = 'All tasks for floodgate promote of batch is completed';
+    return stepMsg;
 
     async function previewOrPublishPages(operation) {
         const statuses = [];

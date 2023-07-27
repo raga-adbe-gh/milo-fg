@@ -23,7 +23,6 @@ const { isAuthorizedUser } = require('../sharepoint');
 const sharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
 
-const ENABLE = false;
 const logger = getAioLogger();
 
 // Maintainance functions
@@ -56,8 +55,8 @@ async function main(args) {
         if (params.groups !== undefined) payload.groups = await maintAction.getGroupUsers(args.groups, args.spToken);
 
         // Admin function
-        if (ENABLE && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
-        if (ENABLE && params.clearStateStore !== undefined) payload.stateStore = (await maintAction.clearStateStore(params.clearStateStore));
+        if (appConfig.isAdmin(args.adminKey) && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
+        if (appConfig.isAdmin(args.adminKey) && params.clearStateStore !== undefined) payload.stateStore = (await maintAction.clearStateStore(params.clearStateStore));
     } catch (err) {
         logger.error(err);
         payload.error = err;

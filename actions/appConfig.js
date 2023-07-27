@@ -18,17 +18,24 @@
 const crypto = require('crypto');
 
 class AppConfig {
-    configMap = {};
+    configMap = { payload: {} };
 
     setAppConfig(params) {
+        // These are payload parameters
+        this.configMap.payload.spToken = params.spToken;
+        this.configMap.payload.adminPageUri = params.adminPageUri;
+        this.configMap.payload.projectExcelPath = params.projectExcelPath;
+        this.configMap.payload.shareUrl = params.shareUrl;
+        this.configMap.payload.fgShareUrl = params.fgShareUrl;
+        this.configMap.payload.rootFolder = params.rootFolder;
+        this.configMap.payload.fgRootFolder = params.fgRootFolder;
+        this.configMap.payload.promoteIgnorePaths = params.promoteIgnorePaths || [];
+        this.configMap.payload.doPublish = params.doPublish;
+
+        // These are from configs
         this.configMap.fgSite = params.fgSite;
         this.configMap.fgClientId = params.fgClientId;
         this.configMap.fgAuthority = params.fgAuthority;
-        this.configMap.shareUrl = params.shareUrl;
-        this.configMap.fgShareUrl = params.fgShareUrl;
-        this.configMap.rootFolder = params.rootFolder;
-        this.configMap.fgRootFolder = params.fgRootFolder;
-        this.configMap.promoteIgnorePaths = params.promoteIgnorePaths || [];
         this.configMap.clientId = params.clientId;
         this.configMap.tenantId = params.tenantId;
         this.configMap.certPassword = params.certPassword;
@@ -38,11 +45,26 @@ class AppConfig {
         this.configMap.batchFilesPath = params.batchFilesPath || 'milo-process/batching';
         this.configMap.maxFilesPerBatch = parseInt(params.maxFilesPerBatch || '200', 10);
         this.configMap.numBulkReq = parseInt(params.numBulkReq || '20', 10);
+        this.configMap.tempAdminKey = params.tempAdminKey;
         this.extractPrivateKey();
     }
 
     getConfig() {
         return this.configMap;
+    }
+
+    getPayload() {
+        return this.configMap.payload;
+    }
+
+    /**
+     * Parameter that was part of payload.
+     * Avoid access tokens, No PASS or SECRET Keys to be passed
+     * @returns key-value
+     */
+    getPassthruParams() {
+        const { spToken, ...payloadParams } = this.configMap.payload;
+        return payloadParams;
     }
 
     getMsalConfig() {
@@ -54,17 +76,12 @@ class AppConfig {
         };
     }
 
-    getSiteConfig() {
-        const { fgSite, fgRootFolder } = this.configMap;
-        return { fgSite, fgRootFolder };
-    }
-
     getFgSite() {
         return this.configMap.fgSite;
     }
 
     getPromoteIgnorePaths() {
-        return this.configMap.promoteIgnorePaths;
+        return this.configMap.payload.promoteIgnorePaths;
     }
 
     extractPrivateKey() {
@@ -98,6 +115,10 @@ class AppConfig {
 
     getNumBulkReq() {
         return this.configMap.numBulkReq;
+    }
+
+    isAdmin(adminKey) {
+        return adminKey === this.configMap.tempAdminKey;
     }
 }
 

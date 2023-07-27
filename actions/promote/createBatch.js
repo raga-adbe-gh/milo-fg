@@ -35,8 +35,8 @@ const MAX_CHILDREN = 5000;
  * 1. Searches for the files to be promoted (using msal search api)
  * 2. Splits these files to be promoted into batches based on maxFilesPerBatch parameter
  * The batch information are stored across files
- * promoteAction/milo_tracker.json - Tracker file that stores the batching instances that needs to be processed. e.g. milo_pink or cc_pink
- * promoteAction/instance<instance e.g. _milo_pink>/milo_batching_instance.json - This stores the information of the batches and respective activation ids
+ * promoteAction/tracker.json - Tracker file that stores the batching instances that needs to be processed. e.g. milo_pink or cc_pink
+ * promoteAction/instance<instance e.g. _milo_pink>/instance.json - This stores the information of the batches and respective activation ids
  * promoteAction/instance_milo_pink/batch_<n>>/batch_info.json - This stores the files that needs to be processed by the batch
  * promoteAction/instance_milo_pink/batch_<n>/results.json - After the batch is process is completed results are stored (e.g. failed promotes)
  * Following parameters are used and needs to be tweaked
@@ -48,47 +48,44 @@ const MAX_CHILDREN = 5000;
  */
 async function main(params) {
     logMemUsage();
-    let payload;
-    const {
-        adminPageUri, projectExcelPath, fgRootFolder, doPublish
-    } = params;
+    let stepMsg;
     appConfig.setAppConfig(params);
-    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: fgRootFolder });
-    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder }) });
+    const payload = appConfig.getPayload();
+    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: payload.fgRootFolder });
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: payload.fgRootFolder }) });
     await batchManager.init();
     // For current cleanup files before starting
     await batchManager.cleanupFiles();
     try {
-        if (!fgRootFolder) {
-            payload = 'Required data is not available to proceed with FG Promote action.';
-            logger.error(payload);
-        } else if (!adminPageUri || !projectExcelPath) {
-            payload = 'Required data is not available to proceed with FG Promote action.';
+        if (!payload.fgRootFolder) {
+            stepMsg = 'Required data is not available to proceed with FG Promote action.';
+            logger.error(stepMsg);
+        } else if (!payload.adminPageUri || !payload.projectExcelPath) {
+            stepMsg = 'Required data is not available to proceed with FG Promote action.';
             await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.FAILED,
-                statusMessage: payload
+                statusMessage: stepMsg
             });
         } else {
-            urlInfo.setUrlInfo(adminPageUri);
-            payload = 'Getting all files to be promoted.';
+            urlInfo.setUrlInfo(payload.adminPageUri);
+            stepMsg = 'Getting all files to be promoted.';
             await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload
+                statusMessage: stepMsg
             });
-            logger.info(payload);
-            payload = 'Creating batches.';
-            payload = await createBatch(batchManager);
+            logger.info(stepMsg);
+            stepMsg = 'Creating batches.';
+            logger.info(stepMsg);
+            stepMsg = await createBatch(batchManager);
             await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload,
+                statusMessage: stepMsg,
                 batchesInfo: batchManager.getBatchesInfo()
             });
-            logger.info(payload);
+            logger.info(stepMsg);
 
             // Finalize and Trigger N Track the batches
-            await batchManager.finalizeInstance({
-                adminPageUri, projectExcelPath, fgRootFolder, doPublish
-            });
+            await batchManager.finalizeInstance(appConfig.getPassthruParams());
             logger.info('Instance finalized and started');
         }
     } catch (err) {
@@ -97,11 +94,11 @@ async function main(params) {
             statusMessage: err.message,
         });
         logger.error(err);
-        payload = err;
+        stepMsg = err;
     }
 
     return {
-        body: payload,
+        body: stepMsg,
     };
 }
 
@@ -121,7 +118,6 @@ async function createBatch(batchManager) {
         baseURI,
         options,
         rootFolder,
-        fgFiles: [],
         fgFolders: ['/drafts'],
         promoteIgnoreList,
         downloadBaseURI: sp.api.file.download.baseURI

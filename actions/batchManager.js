@@ -112,9 +112,9 @@ class BatchManager {
             const buffer = await this.filesSdk.read(this.bmTracker);
             return JSON.parse(buffer.toString());
         } catch (err) {
-            logger.error(`Error while reading bmTracker file ${err.message}`);
-            return {};
+            logger.debug(`Error while reading bmTracker file ${err.message}`);
         }
+        return {};
     }
 
     async writeToBmTracker(data) {

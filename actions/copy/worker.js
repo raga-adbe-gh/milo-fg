@@ -25,6 +25,7 @@ const {
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
+const { authConfig } = require('../sharepointAuth');
 
 const BATCH_REQUEST_COPY = 20;
 const DELAY_TIME_COPY = 3000;
@@ -141,6 +142,8 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus) {
 
     // process data in batches
     const copyStatuses = [];
+    // Get the access token to cache, avoidid parallel hits to this in below loop.
+    await authConfig.getAccessToken();
     for (let i = 0; i < batchArray.length; i += 1) {
         // Log memory usage per batch as copy is a heavy operation. Can be removed after testing are done.
         // Can be replaced with logMemUsageIter for regular logging

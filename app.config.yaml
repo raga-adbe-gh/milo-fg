@@ -18,7 +18,9 @@ application:
           batchFilesPath: $BATCH_FILES_PATH
           maxFilesPerBatch: $MAX_FILES_PER_BATCH
           numBulkReq: $NUM_BULK_REQUEST
-          tempAdminKey: $TEMP_ADMIN_KEY
+          groupCheckUrl: $GROUP_CHECK_URL
+          fgUserGroups: $FG_USER_GROUPS
+          fgAdminGroups: $FG_ADMIN_GROUPS
         actions:
           copy:
             function: actions/copy/copy.js

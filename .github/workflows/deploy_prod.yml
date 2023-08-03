@@ -45,6 +45,9 @@ jobs:
           CERT_KEY: ${{ secrets.CERT_KEY }}
           CERT_THUMB_PRINT: ${{ secrets.CERT_THUMB_PRINT }}
           SPLUNK_HEC__HEC_TOKEN: ${{ secrets.SPLUNK_HEC_TOKEN_PROD }}
+          GROUP_CHECK_URL: ${{ secrets.GROUP_CHECK_URL }}
+          FG_USER_GROUPS: ${{ secrets.FG_USER_GROUPS }}
+          FG_ADMIN_GROUPS: ${{ secrets.FG_ADMIN_GROUPS }}
         uses: adobe/aio-apps-action@2.0.2
         with:
           os: ${{ matrix.os }}

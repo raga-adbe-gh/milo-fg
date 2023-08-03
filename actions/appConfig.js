@@ -48,7 +48,6 @@ class AppConfig {
         this.configMap.groupCheckUrl = params.groupCheckUrl;
         this.configMap.fgUserGroups = this.getJsonFromStr(params.fgUserGroups, []);
         this.configMap.fgAdminGroups = this.getJsonFromStr(params.fgAdminGroups, []);
-        this.configMap.tempAdminKey = params.tempAdminKey;
         this.extractPrivateKey();
     }
 
@@ -127,10 +126,6 @@ class AppConfig {
 
     getNumBulkReq() {
         return this.configMap.numBulkReq;
-    }
-
-    isAdmin(adminKey) {
-        return adminKey === this.configMap.tempAdminKey;
     }
 }
 

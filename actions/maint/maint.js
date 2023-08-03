@@ -16,18 +16,22 @@
 ************************************************************************* */
 
 // eslint-disable-next-line import/no-extraneous-dependencies
+const openwhisk = require('openwhisk');
 const filesLib = require('@adobe/aio-lib-files');
 const { getAioLogger, PROMOTE_ACTION } = require('../utils');
 const appConfig = require('../appConfig');
 const { isAuthorizedUser } = require('../sharepoint');
 const sharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
+const FgUser = require('../fgUser');
 
 const logger = getAioLogger();
+const TRACKER_RULE = 'everyMinRule';
 
 // Maintainance functions
 async function main(args) {
-    let payload = {};
+    const ow = openwhisk();
+    const payload = {};
     try {
         const params = {
             deleteFilePath: args.deleteFilePath,
@@ -35,28 +39,37 @@ async function main(args) {
             dataFile: args.dataFile,
             stateStoreKey: args.stateStoreKey,
             clearStateStore: args.clearStateStore,
-            groups: args.groups
+            tracker: args.tracker,
         };
         appConfig.setAppConfig(args);
+        const filesSdk = await filesLib.init();
+        const fgUser = new FgUser({ at: args.spToken });
+        const maintAction = new MaintAction();
+        maintAction.setFilesSdk(filesSdk);
+
+        // Admin function
+        payload.permissions = {
+            isAdmin: await fgUser.isAdmin(),
+            isUser: await fgUser.isUser(),
+        };
+
         const accountDtls = await isAuthorizedUser(args.spToken);
         if (!accountDtls) {
-            payload = 'Could not determine the user.';
+            payload.error = 'Could not determine the user.';
             logger.error(payload);
+            return {
+                payload,
+            };
         }
         const userDetails = sharepointAuth.getUserDetails(args.spToken);
 
         logger.info(`maint action ${JSON.stringify(params)} by ${JSON.stringify(userDetails)}`);
-        const filesSdk = await filesLib.init();
-        const maintAction = new MaintAction();
-        maintAction.setFilesSdk(filesSdk);
         if (params.listFilePath !== undefined) payload.fileList = await maintAction.listFiles(params.listFilePath);
         if (params.dataFile !== undefined) payload.fileData = await maintAction.dataFile(params.dataFile);
         if (params.stateStoreKey !== undefined) payload.stateStore = await maintAction.stateStoreKey(params.stateStoreKey);
-        if (params.groups !== undefined) payload.groups = await maintAction.getGroupUsers(args.groups, args.spToken);
-
-        // Admin function
-        if (appConfig.isAdmin(args.adminKey) && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
-        if (appConfig.isAdmin(args.adminKey) && params.clearStateStore !== undefined) payload.stateStore = (await maintAction.clearStateStore(params.clearStateStore));
+        if (payload.permissions?.isAdmin && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
+        if (payload.permissions?.isAdmin && params.clearStateStore !== undefined) payload.stateStore = (await maintAction.clearStateStore(params.clearStateStore));
+        if (payload.permissions?.isAdmin && params.tracker !== undefined) payload.tracker = `Tracker enable=${params.tracker} ${(await maintAction.updateTracker({ enable: params.tracker }, ow))}`;
     } catch (err) {
         logger.error(err);
         payload.error = err;
@@ -117,16 +130,14 @@ class MaintAction {
         return {};
     }
 
-    async getGroupUsers(grpId, tkn) {
-        const at = tkn || await sharepointAuth.getAccessToken();
-        return fetch(
-            `https://graph.microsoft.com/v1.0/me/memberOf?$count=true&$filter=id eq '${grpId}'`,
-            {
-                headers: {
-                    Authorization: `Bearer ${at}`
-                }
-            }
-        ).then((resp) => resp.json());
+    async updateTracker({ enable = '' }, ow) {
+        if (enable.toLowerCase() === 'on') {
+            return ow.rules.enable({ name: TRACKER_RULE });
+        }
+        if (enable.toLowerCase() === 'off') {
+            return ow.rules.disable({ name: TRACKER_RULE });
+        }
+        return 'No Action';
     }
 }
 

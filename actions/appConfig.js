@@ -16,6 +16,7 @@
  ************************************************************************* */
 
 const crypto = require('crypto');
+const { getAioLogger } = require('./utils');
 
 class AppConfig {
     configMap = { payload: {} };
@@ -64,6 +65,7 @@ class AppConfig {
             return JSON.parse(str);
         } catch (err) {
             // Mostly bad string ignored
+            getAioLogger().info(`Could not while parsing ${str}`);
         }
         return def;
     }

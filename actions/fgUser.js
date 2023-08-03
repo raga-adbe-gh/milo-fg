@@ -62,7 +62,7 @@ class FgUser {
 
     async isAdmin() {
         const grpIds = appConfig.getConfig().fgAdminGroups;
-        return !grpIds?.length ? true : this.isInGroups(grpIds);
+        return !grpIds?.length ? false : this.isInGroups(grpIds);
     }
 
     async isUser() {

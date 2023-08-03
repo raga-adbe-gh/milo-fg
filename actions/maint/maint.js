@@ -39,7 +39,6 @@ async function main(args) {
             dataFile: args.dataFile,
             stateStoreKey: args.stateStoreKey,
             clearStateStore: args.clearStateStore,
-            groups: args.groups,
             tracker: args.tracker,
         };
         appConfig.setAppConfig(args);
@@ -68,7 +67,6 @@ async function main(args) {
         if (params.listFilePath !== undefined) payload.fileList = await maintAction.listFiles(params.listFilePath);
         if (params.dataFile !== undefined) payload.fileData = await maintAction.dataFile(params.dataFile);
         if (params.stateStoreKey !== undefined) payload.stateStore = await maintAction.stateStoreKey(params.stateStoreKey);
-        if (params.groups !== undefined) payload.groups = await maintAction.getGroupUsers(args.groups, args.spToken);
         if (payload.permissions?.isAdmin && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
         if (payload.permissions?.isAdmin && params.clearStateStore !== undefined) payload.stateStore = (await maintAction.clearStateStore(params.clearStateStore));
         if (payload.permissions?.isAdmin && params.tracker !== undefined) payload.tracker = `Tracker enable=${params.tracker} ${(await maintAction.updateTracker({ enable: params.tracker }, ow))}`;

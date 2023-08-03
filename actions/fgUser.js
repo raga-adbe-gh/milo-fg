@@ -18,6 +18,7 @@
 const fetch = require('node-fetch');
 const { getAioLogger } = require('./utils');
 const appConfig = require('./appConfig');
+const sharepointAuth = require('./sharepointAuth');
 
 const logger = getAioLogger();
 class FgUser {
@@ -25,67 +26,48 @@ class FgUser {
 
     constructor({ at }) {
         this.at = at;
-    }
-
-    async fetchMGQL(ep, acc = []) {
-        try {
-            const response = await fetch(ep, {
-                headers: {
-                    Authorization: `Bearer ${this.at}`,
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch data.');
-            }
-
-            const data = await response.json();
-
-            // Accumulate the current page's data
-            const currentData = data.value;
-            acc.push(...currentData);
-
-            // Check if there are more pages (using 'nextLink')
-            if (data['@odata.nextLink']) {
-                // Fetch the next page using recursion
-                return await this.fetchMGQL(data['@odata.nextLink'], acc);
-            }
-
-            return acc;
-        } catch (error) {
-            logger.error('Error fetching data:', error);
-            throw error;
-        }
+        this.userOid = sharepointAuth.getUserDetails(at)?.oid;
     }
 
     async isInGroups(grpIds) {
         if (!grpIds?.length) return false;
-        if (!this.userGroupIds?.length) {
-            const res = await this.fetchMGQL(`${appConfig.getConfig().groupCheckUrl}?$select=id`);
-            this.userGroupIds = res?.length ? res.map((e) => e.id) : [];
+        const appAt = await sharepointAuth.getAccessToken();
+        // eslint-disable-next-line max-len
+        const numGrps = grpIds.length;
+        let url = appConfig.getConfig().groupCheckUrl || '';
+        url += `&$filter=id eq '${this.userOid}'`;
+        let found = false;
+        for (let c = 0; c < numGrps; c += 1) {
+            const grpUrl = url.replace('{groupOid}', grpIds[c]);
+            logger.debug(`isInGroups-URL- ${grpUrl}`);
+            // eslint-disable-next-line no-await-in-loop
+            found = await fetch(grpUrl, {
+                headers: {
+                    Authorization: `Bearer ${appAt}`
+                }
+            }).then((d) => d.json()).then((d1) => {
+                if (d1.error) {
+                    // When user dooes not have access to group an error is also returned
+                    logger.debug(`Error while getting member info ${JSON.stringify(d1)}`);
+                }
+                return d1?.value?.length && true;
+            }).catch((err) => {
+                logger.warn(err);
+                return false;
+            });
+            if (found) break;
         }
-        return (this.userGroupIds || []).find((e) => grpIds.includes(e)) !== undefined;
+        return found === true;
     }
 
     async isAdmin() {
         const grpIds = appConfig.getConfig().fgAdminGroups;
-        return this.isInGroups(grpIds, this.at);
+        return !grpIds?.length ? true : this.isInGroups(grpIds);
     }
 
     async isUser() {
         const grpIds = appConfig.getConfig().fgUserGroups;
-        return this.isInGroups(grpIds, this.at);
-    }
-
-    async getGroupUsers(grpId) {
-        return fetch(
-            `${appConfig.getConfig().groupCheckUrl}?$filter=id eq '${grpId}'`,
-            {
-                headers: {
-                    Authorization: `Bearer ${this.at}`
-                }
-            }
-        ).then((resp) => resp.json());
+        return !grpIds?.length ? true : this.isInGroups(grpIds);
     }
 }
 

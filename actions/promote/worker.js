@@ -39,7 +39,7 @@ async function main(params) {
     appConfig.setAppConfig(params);
     // Tracker uses the below hence change here might need change in tracker as well.
     const payload = appConfig.getPayload();
-    const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, statusKey: `${payload.fgRootFolder}~Batch_${payload.batchNumber}` });
+    const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, statusKey: `${payload.fgRootFolder}~Batch_${batchNumber}` });
     const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: payload.fgRootFolder }) });
     await batchManager.init({ batchNumber });
     try {
@@ -144,6 +144,7 @@ async function promoteFloodgatedFiles(doPublish, batchManager) {
     let stepMsg = 'Getting all floodgated files to promote.';
     // Get the batch files using the batchmanager for the assigned batch and process them
     const currentBatch = await batchManager.getCurrentBatch();
+    const currBatchLbl = `Batch-${currentBatch.getBatchNumber()}`;
     const allFloodgatedFiles = await currentBatch?.getFiles();
     logger.info(`Files for the batch are ${allFloodgatedFiles.length}`);
     // create batches to process the data
@@ -165,7 +166,7 @@ async function promoteFloodgatedFiles(doPublish, batchManager) {
         await delay(DELAY_TIME_PROMOTE);
     }
 
-    stepMsg = 'Completed promoting all documents in the batch';
+    stepMsg = `Completed promoting all documents in the batch ${currBatchLbl}`;
     logger.info(stepMsg);
 
     logger.info('Previewing promoted files.');
@@ -191,7 +192,7 @@ async function promoteFloodgatedFiles(doPublish, batchManager) {
         .map((status) => status.path);
     const failedPublishes = publishStatuses.filter((status) => !status.success)
         .map((status) => status.path);
-    logger.info(`Batch-${currentBatch.getBatchNumber()}, Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length}`);
+    logger.info(`${currBatchLbl}, Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length}`);
 
     if (failedPromotes.length > 0 || failedPreviews.length > 0 || failedPublishes.length > 0) {
         stepMsg = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';
@@ -200,11 +201,11 @@ async function promoteFloodgatedFiles(doPublish, batchManager) {
         currentBatch.writeResults({ failedPromotes, failedPreviews, failedPublishes });
         throw new Error(stepMsg);
     } else {
-        stepMsg = 'Promoted floodgate for batch successfully.';
+        stepMsg = `Promoted floodgate for ${currBatchLbl} successfully`;
         logger.info(stepMsg);
     }
     logMemUsage();
-    stepMsg = 'All tasks for floodgate promote of batch is completed';
+    stepMsg = `All tasks for floodgate promote of ${currBatchLbl} is completed`;
     return stepMsg;
 
     async function previewOrPublishPages(operation) {

@@ -80,10 +80,6 @@ async function getDriveRoot(accessToken) {
     return null;
 }
 
-async function isAuthorizedUser(accessToken) {
-    return getDriveRoot(accessToken);
-}
-
 async function getFileData(filePath, isFloodgate) {
     const { sp } = await getConfig();
     const options = await getAuthorizedRequestOption();
@@ -417,7 +413,6 @@ function logHeaders(response) {
 
 module.exports = {
     getAuthorizedRequestOption,
-    isAuthorizedUser,
     getFilesData,
     getFile,
     getFileUsingDownloadUrl,
@@ -429,4 +424,5 @@ module.exports = {
     getFolderFromPath,
     getFileNameFromPath,
     bulkCreateFolders,
+    getDriveRoot,
 };

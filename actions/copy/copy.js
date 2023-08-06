@@ -21,9 +21,9 @@ const {
     getAioLogger, actInProgress, COPY_ACTION
 } = require('../utils');
 const appConfig = require('../appConfig');
-const { isAuthorizedUser } = require('../sharepoint');
 const sharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
+const FgUser = require('../fgUser');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
@@ -53,10 +53,12 @@ async function main(args) {
             const storeValue = await fgStatus.getStatusFromStateLib();
             const actId = storeValue?.action?.activationId;
             const svStatus = storeValue?.action?.status;
-            const accountDtls = await isAuthorizedUser(spToken);
-            if (!accountDtls) {
-                payload = 'Could not determine the user.';
-                logger.error(payload);
+            const fgUser = new FgUser({ at: args.spToken });
+            if (!await fgUser.isUser()) {
+                payload = 'Unauthorized Access! Please contact Floodgate Administrators.';
+                storeValue.action.status = FgStatus.PROJECT_STATUS.FAILED;
+                storeValue.action.message = payload;
+                payload = storeValue;
             } else if (!appConfig.getSkipInProgressCheck() &&
                 await actInProgress(ow, actId, FgStatus.isInProgress(svStatus))) {
                 payload = `A copy action project with activationid: ${storeValue?.action?.activationId} is already in progress. 

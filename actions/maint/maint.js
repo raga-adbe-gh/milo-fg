@@ -20,7 +20,6 @@ const openwhisk = require('openwhisk');
 const filesLib = require('@adobe/aio-lib-files');
 const { getAioLogger, PROMOTE_ACTION } = require('../utils');
 const appConfig = require('../appConfig');
-const { isAuthorizedUser } = require('../sharepoint');
 const sharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
 const FgUser = require('../fgUser');
@@ -53,8 +52,7 @@ async function main(args) {
             isUser: await fgUser.isUser(),
         };
 
-        const accountDtls = await isAuthorizedUser(args.spToken);
-        if (!accountDtls) {
+        if (!(payload.permissions.isAdmin || payload.permissions.isUser)) {
             payload.error = 'Could not determine the user.';
             logger.error(payload);
             return {

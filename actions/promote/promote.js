@@ -21,9 +21,9 @@ const {
     getAioLogger, PROMOTE_ACTION
 } = require('../utils');
 const appConfig = require('../appConfig');
-const { isAuthorizedUser } = require('../sharepoint');
 const sharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
+const FgUser = require('../fgUser');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
@@ -49,13 +49,13 @@ async function main(args) {
             const ow = openwhisk();
             const storeValue = await fgStatus.getStatusFromStateLib();
             const svStatus = storeValue?.action?.status;
-
-            // Get Activation Status
             const fgInProg = FgStatus.isInProgress(svStatus);
-            const accountDtls = await isAuthorizedUser(payload.spToken);
-            if (!accountDtls) {
-                stepMsg = 'Could not determine the user.';
-                logger.error(stepMsg);
+            const fgUser = new FgUser({ at: args.spToken });
+            if (!await fgUser.isUser()) {
+                stepMsg = 'Unauthorized Access! Please contact Floodgate Administrators.';
+                storeValue.action.status = FgStatus.PROJECT_STATUS.FAILED;
+                storeValue.action.message = stepMsg;
+                stepMsg = storeValue;
             } else if (!appConfig.getSkipInProgressCheck() && fgInProg) {
                 stepMsg = `A promote action project with activationid: ${storeValue?.action?.activationId} is already in progress. 
                 Not triggering this action. And the previous action can be retrieved by refreshing the console page`;

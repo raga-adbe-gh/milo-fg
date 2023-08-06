@@ -65,7 +65,7 @@ class AppConfig {
             return JSON.parse(str);
         } catch (err) {
             // Mostly bad string ignored
-            getAioLogger().info(`Could not while parsing ${str}`);
+            getAioLogger().debug(`Error while parsing ${str}`);
         }
         return def;
     }

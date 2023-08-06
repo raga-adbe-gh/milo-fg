@@ -18,6 +18,7 @@
 const fetch = require('node-fetch');
 const { getAioLogger } = require('./utils');
 const appConfig = require('./appConfig');
+const sharepoint = require('./sharepoint');
 const sharepointAuth = require('./sharepointAuth');
 
 const logger = getAioLogger();
@@ -60,14 +61,24 @@ class FgUser {
         return found === true;
     }
 
-    async isAdmin() {
+    async isInAdminGroup() {
         const grpIds = appConfig.getConfig().fgAdminGroups;
         return !grpIds?.length ? false : this.isInGroups(grpIds);
     }
 
-    async isUser() {
+    async isInUserGroup() {
         const grpIds = appConfig.getConfig().fgUserGroups;
         return !grpIds?.length ? true : this.isInGroups(grpIds);
+    }
+
+    async isUser() {
+        const dr = await sharepoint.getDriveRoot(this.at);
+        return dr ? this.isInUserGroup() : false;
+    }
+
+    async isAdmin() {
+        const dr = await sharepoint.getDriveRoot(this.at);
+        return dr ? this.isInAdminGroup() : false;
     }
 }
 

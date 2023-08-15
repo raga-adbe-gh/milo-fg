@@ -95,7 +95,7 @@ async function getExcelTable(excelPath, tableName) {
                 .filter((e) => e.values?.find((rw) => rw.find((col) => col)))
                 .map((e) => e.values);
     }
-    throw new Error(`Failed to getExcelTable from ${excelPath} table ${tableName} : ${JSON.stringify(res)}.`);
+    throw new Error(`Failed to getExcelTable from ${excelPath} table ${tableName}`);
 }
 
 async function getFileData(filePath, isFloodgate) {

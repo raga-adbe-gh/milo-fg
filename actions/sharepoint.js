@@ -80,6 +80,24 @@ async function getDriveRoot(accessToken) {
     return null;
 }
 
+async function getExcelTable(excelPath, tableName) {
+    const { sp } = await getConfig();
+    const options = await getAuthorizedRequestOption();
+    const res = await fetchWithRetry(
+        `${sp.api.file.get.baseURI}${excelPath}:/workbook/tables/${tableName}/rows`,
+        options,
+    );
+    if (res.ok) {
+        const tableJson = await res.json();
+        // tableJson is {value: [<rows>{ index: 0, values: [[<all cols>]] }]}
+        return !tableJson?.value ? [] :
+            tableJson.value
+                .filter((e) => e.values?.find((rw) => rw.find((col) => col)))
+                .map((e) => e.values);
+    }
+    throw new Error(`Failed to getExcelTable from ${excelPath} table ${tableName} : ${JSON.stringify(res)}.`);
+}
+
 async function getFileData(filePath, isFloodgate) {
     const { sp } = await getConfig();
     const options = await getAuthorizedRequestOption();
@@ -413,6 +431,8 @@ function logHeaders(response) {
 
 module.exports = {
     getAuthorizedRequestOption,
+    getDriveRoot,
+    getExcelTable,
     getFilesData,
     getFile,
     getFileUsingDownloadUrl,
@@ -424,5 +444,4 @@ module.exports = {
     getFolderFromPath,
     getFileNameFromPath,
     bulkCreateFolders,
-    getDriveRoot,
 };

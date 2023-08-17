@@ -32,6 +32,7 @@ const TOO_MANY_REQUESTS = '429';
 // Added for debugging rate limit headers
 const LOG_RESP_HEADER = false;
 let nextCallAfter = 0;
+const itemIdMap = {};
 
 // eslint-disable-next-line default-param-last
 async function getAuthorizedRequestOption({ body = null, json = true, method = 'GET' } = {}) {
@@ -58,6 +59,21 @@ async function getAuthorizedRequestOption({ body = null, json = true, method = '
     return options;
 }
 
+async function executeGQL(url, opts) {
+    const options = await getAuthorizedRequestOption(opts);
+    const res = await fetchWithRetry(url, options);
+    if (!res.ok) {
+        throw new Error(`Failed to execute ${url}`);
+    }
+    return res.json();
+}
+
+async function getItemUri(uri, path) {
+    const key = `~${uri}~${path}~`;
+    itemIdMap[key] = itemIdMap[key] || await executeGQL(`${uri}${path}?$select=id`);
+    return uri && itemIdMap[key]?.id && `${uri.replace(/\/root:[^:]*$/, '')}/items/${itemIdMap[key].id}`;
+}
+
 async function getDriveRoot(accessToken) {
     const logger = getAioLogger();
     try {
@@ -78,24 +94,6 @@ async function getDriveRoot(accessToken) {
         logger.info(JSON.stringify(error));
     }
     return null;
-}
-
-async function getExcelTable(excelPath, tableName) {
-    const { sp } = await getConfig();
-    const options = await getAuthorizedRequestOption();
-    const res = await fetchWithRetry(
-        `${sp.api.file.get.baseURI}${excelPath}:/workbook/tables/${tableName}/rows`,
-        options,
-    );
-    if (res.ok) {
-        const tableJson = await res.json();
-        // tableJson is {value: [<rows>{ index: 0, values: [[<all cols>]] }]}
-        return !tableJson?.value ? [] :
-            tableJson.value
-                .filter((e) => e.values?.find((rw) => rw.find((col) => col)))
-                .map((e) => e.values);
-    }
-    throw new Error(`Failed to getExcelTable from ${excelPath} table ${tableName}`);
 }
 
 async function getFileData(filePath, isFloodgate) {
@@ -352,22 +350,29 @@ async function saveFile(file, dest, isFloodgate) {
     return { success: false, path: dest };
 }
 
+async function getExcelTable(excelPath, tableName) {
+    const { sp } = await getConfig();
+    const itemUri = await getItemUri(sp.api.file.get.baseURI, excelPath);
+    if (itemUri) {
+        const tableJson = await executeGQL(`${itemUri}/workbook/tables/${tableName}/rows`);
+        return !tableJson?.value ? [] :
+            tableJson.value
+                .filter((e) => e.values?.find((rw) => rw.find((col) => col)))
+                .map((e) => e.values);
+    }
+    return [];
+}
+
 async function updateExcelTable(excelPath, tableName, values) {
     const { sp } = await getConfig();
-
-    const options = await getAuthorizedRequestOption({
-        body: JSON.stringify({ values }),
-        method: sp.api.excel.update.method,
-    });
-
-    const res = await fetch(
-        `${sp.api.excel.update.baseURI}${excelPath}:/workbook/tables/${tableName}/rows/add`,
-        options,
-    );
-    if (res.ok) {
-        return res.json();
+    const itemUri = await getItemUri(sp.api.file.get.baseURI, excelPath);
+    if (itemUri) {
+        return executeGQL(`${itemUri}/workbook/tables/${tableName}/rows`, {
+            body: JSON.stringify({ values }),
+            method: sp.api.excel.update.method,
+        });
     }
-    throw new Error(`Failed to update excel sheet ${excelPath} table ${tableName}.`);
+    return {};
 }
 
 // fetch-with-retry added to check for Sharepoint RateLimit headers and 429 errors and to handle them accordingly.
@@ -431,6 +436,7 @@ function logHeaders(response) {
 
 module.exports = {
     getAuthorizedRequestOption,
+    executeGQL,
     getDriveRoot,
     getExcelTable,
     getFilesData,

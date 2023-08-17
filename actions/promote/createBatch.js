@@ -107,7 +107,7 @@ async function main(params) {
  */
 async function createBatch(batchManager) {
     const { sp } = await getConfig();
-    const baseURI = `${sp.api.excel.update.fgBaseURI}`;
+    const baseURI = `${sp.api.file.get.fgBaseURI}`;
     const rootFolder = baseURI.split('/').pop();
     const options = await getAuthorizedRequestOption({ method: 'GET' });
     const promoteIgnoreList = appConfig.getPromoteIgnorePaths();

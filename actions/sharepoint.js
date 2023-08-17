@@ -68,10 +68,10 @@ async function executeGQL(url, opts) {
     return res.json();
 }
 
-async function getItemUri(uri, path) {
+async function getItemId(uri, path) {
     const key = `~${uri}~${path}~`;
     itemIdMap[key] = itemIdMap[key] || await executeGQL(`${uri}${path}?$select=id`);
-    return uri && itemIdMap[key]?.id && `${uri.replace(/\/root:[^:]*$/, '')}/items/${itemIdMap[key].id}`;
+    return itemIdMap[key]?.id;
 }
 
 async function getDriveRoot(accessToken) {
@@ -352,9 +352,9 @@ async function saveFile(file, dest, isFloodgate) {
 
 async function getExcelTable(excelPath, tableName) {
     const { sp } = await getConfig();
-    const itemUri = await getItemUri(sp.api.file.get.baseURI, excelPath);
-    if (itemUri) {
-        const tableJson = await executeGQL(`${itemUri}/workbook/tables/${tableName}/rows`);
+    const itemId = await getItemId(sp.api.file.get.baseURI, excelPath);
+    if (itemId) {
+        const tableJson = await executeGQL(`${sp.api.excel.get.baseItemsURI}/${itemId}/workbook/tables/${tableName}/rows`);
         return !tableJson?.value ? [] :
             tableJson.value
                 .filter((e) => e.values?.find((rw) => rw.find((col) => col)))
@@ -365,9 +365,9 @@ async function getExcelTable(excelPath, tableName) {
 
 async function updateExcelTable(excelPath, tableName, values) {
     const { sp } = await getConfig();
-    const itemUri = await getItemUri(sp.api.file.get.baseURI, excelPath);
-    if (itemUri) {
-        return executeGQL(`${itemUri}/workbook/tables/${tableName}/rows`, {
+    const itemId = await getItemId(sp.api.file.get.baseURI, excelPath);
+    if (itemId) {
+        return executeGQL(`${sp.api.excel.update.baseItemsURI}/${itemId}/workbook/tables/${tableName}/rows`, {
             body: JSON.stringify({ values }),
             method: sp.api.excel.update.method,
         });

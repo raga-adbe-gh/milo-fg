@@ -156,8 +156,6 @@ async function findAndBatchFGFiles(
                     logger.info(`Ignored from promote: ${itemPath}`);
                 }
             }
-        } else {
-            logger.error(`Could not fetch tree files for URL ${uri}`);
         }
     }
 }

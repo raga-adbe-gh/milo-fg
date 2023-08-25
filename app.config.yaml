@@ -21,6 +21,7 @@ application:
           groupCheckUrl: $GROUP_CHECK_URL
           fgUserGroups: $FG_USER_GROUPS
           fgAdminGroups: $FG_ADMIN_GROUPS
+          siteRootPathRex: $SITE_ROOT_PATH_REX
         actions:
           copy:
             function: actions/copy/copy.js

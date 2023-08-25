@@ -115,17 +115,28 @@ class MaintAction {
     }
 
     async stateStoreKey(key) {
-        // Split by comma (action, statusKey)
-        const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: key });
+        const fgStatus = new FgStatus(this.getActionStatusKey(key));
         const data = await fgStatus.getStatusFromStateLib();
         return data;
     }
 
     async clearStateStore(key) {
-        // Split by comma (action, statusKey)
-        const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: key });
+        const fgStatus = new FgStatus(this.getActionStatusKey(key));
         await fgStatus.clearState(true);
         return {};
+    }
+
+    getActionStatusKey() {
+        // Split by comma (action, statusKey)
+        let action = PROMOTE_ACTION;
+        let statusKey;
+        try {
+            const mtchs = key.match(/(.*?),(.*)/);
+            [, action, statusKey] = mtchs;
+        } catch (err) {
+            // Do Nothing
+        }
+        return { action, statusKey };
     }
 
     async updateTracker({ enable = '' }, ow) {

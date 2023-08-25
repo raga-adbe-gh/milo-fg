@@ -33,10 +33,9 @@ async function main(args) {
         spToken, adminPageUri, projectExcelPath, rootFolder
     } = args;
     appConfig.setAppConfig(args);
-    const projectPath = `${rootFolder}${projectExcelPath}`;
     const userDetails = sharepointAuth.getUserDetails(spToken);
-    const fgStatus = new FgStatus({ action: COPY_ACTION, statusKey: projectPath, userDetails });
-    logger.info(`Copy action for ${projectPath} triggered by ${JSON.stringify(userDetails)}`);
+    const fgStatus = new FgStatus({ action: COPY_ACTION, userDetails });
+    logger.info(`Copy action for ${fgStatus.getStoreKey()} triggered by ${JSON.stringify(userDetails)}`);
     try {
         if (!rootFolder || !projectExcelPath) {
             payload = 'Could not determine the project path. Try reloading the page and trigger the action again.';

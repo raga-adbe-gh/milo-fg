@@ -32,7 +32,7 @@ async function main(args) {
     let stepMsg;
     const payload = appConfig.getPayload();
     const userDetails = sharepointAuth.getUserDetails(payload.spToken);
-    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: payload.fgRootFolder, userDetails });
+    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, userDetails });
     logger.info(`Promote action for ${payload.fgRootFolder} triggered by ${JSON.stringify(userDetails)}`);
     try {
         if (!payload.fgRootFolder) {

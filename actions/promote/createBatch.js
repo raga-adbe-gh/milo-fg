@@ -50,9 +50,9 @@ async function main(params) {
     logMemUsage();
     let stepMsg;
     appConfig.setAppConfig(params);
-    const payload = appConfig.getPayload();
-    const fgStatus = new FgStatus({ action: PROMOTE_ACTION, statusKey: payload.fgRootFolder });
-    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: payload.fgRootFolder }) });
+    const { payload, siteFgRootPath } = appConfig.getConfig();
+    const fgStatus = new FgStatus({ action: PROMOTE_ACTION });
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }) });
     await batchManager.init();
     // For current cleanup files before starting
     await batchManager.cleanupFiles();

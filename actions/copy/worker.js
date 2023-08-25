@@ -39,8 +39,7 @@ async function main(params) {
         adminPageUri, projectExcelPath, rootFolder
     } = params;
     appConfig.setAppConfig(params);
-    const projectPath = `${rootFolder}${projectExcelPath}`;
-    const fgStatus = new FgStatus({ action: COPY_ACTION, statusKey: projectPath });
+    const fgStatus = new FgStatus({ action: COPY_ACTION });
     try {
         if (!rootFolder || !projectExcelPath) {
             payload = 'Could not determine the project path. Try reloading the page and trigger the action again.';

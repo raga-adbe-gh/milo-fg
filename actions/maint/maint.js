@@ -126,7 +126,7 @@ class MaintAction {
         return {};
     }
 
-    getActionStatusKey() {
+    getActionStatusKey(key) {
         // Split by comma (action, statusKey)
         let action = PROMOTE_ACTION;
         let statusKey;

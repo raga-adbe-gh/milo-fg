@@ -363,6 +363,30 @@ async function getExcelTable(excelPath, tableName) {
     return [];
 }
 
+async function deleteFloodgateDir(fgRootFolder) {
+    const logger = getAioLogger();
+    logger.info('Deleting content started.');
+    const baseURI = `${appConfig.getConfig().fgSite}/drive/root:${fgRootFolder}`;
+    let deleteSuccess = false;
+
+    const { fgDirPattern } = appConfig.getConfig();
+    const fgRegExp = new RegExp(fgDirPattern);
+    logger.info(fgRegExp);
+    if (fgRegExp.test(baseURI)) {
+        logger.info(`Deleting the folder ${baseURI} `);
+        const temp = '/temp';
+        const finalBaserURI = baseURI + temp;
+        try {
+            const { sp } = await getConfig();
+            await deleteFile(sp, `${finalBaserURI}`);
+            deleteSuccess = true;
+        } catch (error) {
+            logger.info(`Error occurred when trying to delete files of main content tree ${error.message}`);
+        }
+    }
+    return deleteSuccess;
+}
+
 async function updateExcelTable(excelPath, tableName, values) {
     const { sp } = await getConfig();
     const itemId = await getItemId(sp.api.file.get.baseURI, excelPath);
@@ -450,4 +474,5 @@ module.exports = {
     getFolderFromPath,
     getFileNameFromPath,
     bulkCreateFolders,
+    deleteFloodgateDir,
 };

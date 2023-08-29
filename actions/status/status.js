@@ -42,10 +42,7 @@ async function main(args) {
             logger.error(payload);
         } else {
             const fgStatus = new FgStatus({ action: actionMap[type] });
-            logger.info(`Status key -- ${fgStatus.getStoreKey()}`);
             payload = await fgStatus.getStatusFromStateLib();
-
-            logger.info(`Status here -- ${JSON.stringify(payload)}`);
         }
     } catch (err) {
         logger.error(err);

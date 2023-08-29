@@ -17,8 +17,16 @@
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 const appConfig = require('../appConfig');
-const { getAioLogger, COPY_ACTION } = require('../utils');
+const {
+    getAioLogger, COPY_ACTION, PROMOTE_ACTION, DELETE_ACTION
+} = require('../utils');
 const FgStatus = require('../fgStatus');
+
+const actionMap = {
+    copy: COPY_ACTION,
+    promote: PROMOTE_ACTION,
+    delete: DELETE_ACTION
+};
 
 // This returns the activation ID of the action that it called
 async function main(args) {
@@ -26,12 +34,14 @@ async function main(args) {
     let payload;
     try {
         appConfig.setAppConfig(args);
-        const { projectExcelPath, projectRoot, action } = args;
-        if (!projectExcelPath && !projectRoot) {
+        const {
+            type, shareUrl, fgShareUrl
+        } = args;
+        if (!type || !(shareUrl || fgShareUrl)) {
             payload = 'Status : Required data is not available to get the status.';
             logger.error(payload);
         } else {
-            const fgStatus = new FgStatus({ action });
+            const fgStatus = new FgStatus({ action: actionMap[type] });
             logger.info(`Status key -- ${fgStatus.getStoreKey()}`);
             payload = await fgStatus.getStatusFromStateLib();
 

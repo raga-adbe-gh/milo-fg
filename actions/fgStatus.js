@@ -62,16 +62,24 @@ class FgStatus {
      * @param {*} options statusKey is the key to be used to store
      * and actionType is the type of FG Action like copy or promote
      */
-    constructor({ action, statusKey, keySuffix, userDetails }) {
+    constructor({
+        action,
+        statusKey,
+        keySuffix,
+        userDetails
+    }) {
         this.lastTriggeredBy = userDetails?.oid;
         this.action = action || '';
-        this.storeKey = statusKey || `${this.getActionRootPath()}${keySuffix || ''}` || FG_KEY;
+        this.storeKey = statusKey || this.generateStoreKey(keySuffix) || FG_KEY;
         this.logger = getAioLogger();
     }
 
-    getActionRootPath() {
+    generateStoreKey(keySuffix) {
         const { siteRootPath, siteFgRootPath } = appConfig.getConfig();
-        return this.action === COPY_ACTION ? siteRootPath : siteFgRootPath;
+        const { projectExcelPath } = appConfig.getPayload();
+        let resp = this.action === COPY_ACTION ? `${siteRootPath || ''}${projectExcelPath || ''}` : siteFgRootPath;
+        resp += keySuffix || '';
+        return resp;
     }
 
     getStoreKey() {

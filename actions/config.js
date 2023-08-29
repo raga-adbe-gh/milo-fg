@@ -28,7 +28,6 @@ function getSharepointConfig(applicationConfig) {
     const baseURI = `${applicationConfig.fgSite}${drive}/root:${applicationConfig.payload.rootFolder}`;
     const fgBaseURI = `${applicationConfig.fgSite}${drive}/root:${applicationConfig.payload.fgRootFolder}`;
     const baseItemsURI = `${applicationConfig.fgSite}${drive}/items`;
-    const fgBaseItemsURI = `${applicationConfig.fgSite}${drive}/items`;
     return {
         ...applicationConfig,
         clientApp: {
@@ -83,10 +82,9 @@ function getSharepointConfig(applicationConfig) {
                 },
             },
             excel: {
-                get: { baseItemsURI, fgBaseItemsURI },
+                get: { baseItemsURI },
                 update: {
                     baseItemsURI,
-                    fgBaseItemsURI,
                     method: 'POST',
                 },
             },

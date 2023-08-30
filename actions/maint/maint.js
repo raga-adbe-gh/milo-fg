@@ -134,7 +134,7 @@ class MaintAction {
             const mtchs = key.match(/(.*?),(.*)/);
             [, action, statusKey] = mtchs;
         } catch (err) {
-            // Do Nothing
+            logger.error(`Could not parse ${key}`);
         }
         return { action, statusKey };
     }

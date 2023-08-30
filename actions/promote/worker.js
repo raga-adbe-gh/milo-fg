@@ -39,7 +39,7 @@ async function main(params) {
     appConfig.setAppConfig(params);
     // Tracker uses the below hence change here might need change in tracker as well.
     const { payload, siteFgRootPath } = appConfig.getConfig();
-    const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, suffixKey: `Batch_${batchNumber}` });
+    const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, keySuffix: `Batch_${batchNumber}` });
     const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }) });
     await batchManager.init({ batchNumber });
     try {

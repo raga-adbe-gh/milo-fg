@@ -132,10 +132,10 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
         if (activationId && !done) {
             fgStatus = new FgStatus({
                 action: `${PROMOTE_BATCH}_${batchNumber}`,
-                suffixKey: `Batch_${batchNumber}`
+                keySuffix: `Batch_${batchNumber}`
             });
             batchInProg = await fgStatus?.getStatusFromStateLib().then((result) => {
-                if (result.action && FgStatus.isInProgress(result.action.status)) {
+                if (result?.action && FgStatus.isInProgress(result.action.status)) {
                     return true;
                 }
                 return false;

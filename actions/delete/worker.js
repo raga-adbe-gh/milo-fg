@@ -53,7 +53,7 @@ async function main(params) {
                 statusMessage: payload
             });
 
-            const deleteStatus = await deleteFloodgateDir(fgRootFolder);
+            const deleteStatus = await deleteFloodgateDir();
             payload = deleteStatus === false ?
                 'Error occurred when deleting content. Check project excel sheet for additional information.' :
                 'Delete action was completed';

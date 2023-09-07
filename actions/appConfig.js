@@ -54,6 +54,7 @@ class AppConfig {
         this.configMap.siteRootPathRex = this.siteRootPathRex || '.*/sites(/.*)<';
         this.configMap.siteRootPath = this.getSiteRootPath(params.shareUrl);
         this.configMap.siteFgRootPath = this.getSiteRootPath(params.fgShareUrl);
+        this.configMap.helixAdminApiKeys = this.getJsonFromStr(params.helixAdminApiKeys);
         this.extractPrivateKey();
     }
 

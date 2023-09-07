@@ -23,6 +23,7 @@ application:
           fgAdminGroups: $FG_ADMIN_GROUPS
           fgDirPattern: $FG_DIR_PATTERN
           siteRootPathRex: $SITE_ROOT_PATH_REX
+          helixAdminApiKeys: $HELIX_ADMIN_API_KEYS
         actions:
           copy:
             function: actions/copy/copy.js

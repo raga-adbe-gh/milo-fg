@@ -21,8 +21,9 @@ const {
     getAuthorizedRequestOption, saveFile, getFileUsingDownloadUrl, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, simulatePreviewPublish, handleExtension, delay, logMemUsage, getInstanceKey, PREVIEW, PUBLISH, PROMOTE_ACTION, PROMOTE_BATCH
+    getAioLogger, handleExtension, delay, logMemUsage, getInstanceKey, PREVIEW, PUBLISH, PROMOTE_ACTION, PROMOTE_BATCH
 } = require('../utils');
+const helixUtils = require('../helixUtils');
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
@@ -213,7 +214,7 @@ async function promoteFloodgatedFiles(doPublish, batchManager) {
         for (let ip = 0; ip < promoteStatuses.length; ip += 1) {
             if (promoteStatuses[ip].success) {
                 // eslint-disable-next-line no-await-in-loop
-                const result = await simulatePreviewPublish(handleExtension(promoteStatuses[ip].srcPath), operation, 1, false);
+                const result = await helixUtils.simulatePreviewPublish(handleExtension(promoteStatuses[ip].srcPath), operation, false);
                 statuses.push(result);
             }
             await delay();

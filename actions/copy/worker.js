@@ -20,8 +20,9 @@ const {
     updateExcelTable, getFile, saveFile, copyFile, bulkCreateFolders
 } = require('../sharepoint');
 const {
-    getAioLogger, simulatePreviewPublish, handleExtension, delay, PREVIEW, logMemUsage, COPY_ACTION
+    getAioLogger, handleExtension, delay, PREVIEW, logMemUsage, COPY_ACTION
 } = require('../utils');
+const helixUtils = require('../helixUtils');
 const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
@@ -167,7 +168,7 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus) {
         for (let i = 0; i < copyStatuses.length; i += 1) {
             if (copyStatuses[i].success) {
                 // eslint-disable-next-line no-await-in-loop
-                const result = await simulatePreviewPublish(handleExtension(copyStatuses[i].srcPath), PREVIEW, 1, true);
+                const result = await helixUtils.simulatePreviewPublish(handleExtension(copyStatuses[i].srcPath), PREVIEW, true);
                 previewStatuses.push(result);
             }
             // eslint-disable-next-line no-await-in-loop

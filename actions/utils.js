@@ -16,9 +16,7 @@
 ************************************************************************* */
 
 const AioLogger = require('@adobe/aio-lib-core-logging');
-const fetch = require('node-fetch');
 const events = require('events');
-const urlInfo = require('./urlInfo');
 
 const COPY_ACTION = 'copyAction';
 const PROMOTE_ACTION = 'promoteAction';
@@ -27,31 +25,10 @@ const DELETE_ACTION = 'deleteAction';
 const PREVIEW = 'preview';
 const PUBLISH = 'live';
 
-const MAX_RETRIES = 5;
 let eventEmitter = null;
 
 function getAioLogger(loggerName = 'main', logLevel = 'info') {
     return AioLogger(loggerName, { level: logLevel });
-}
-
-// eslint-disable-next-line default-param-last
-async function simulatePreviewPublish(path, operation, retryAttempt = 1, isFloodgate) {
-    let previewStatus = { success: true, path };
-    try {
-        const repo = isFloodgate ? `${urlInfo.getRepo()}-pink` : urlInfo.getRepo();
-        const previewUrl = `https://admin.hlx.page/${operation}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}${path}`;
-        const response = await fetch(
-            `${previewUrl}`,
-            { method: 'POST' },
-        );
-        if (!response.ok && retryAttempt <= MAX_RETRIES) {
-            previewStatus = await simulatePreviewPublish(path, operation, retryAttempt + 1, isFloodgate);
-        }
-        previewStatus.responseJson = await response.json();
-    } catch (error) {
-        previewStatus.success = false;
-    }
-    return previewStatus;
 }
 
 function handleExtension(path) {
@@ -130,7 +107,6 @@ function getInstanceKey(params) {
 
 module.exports = {
     getAioLogger,
-    simulatePreviewPublish,
     handleExtension,
     getDocPathFromUrl,
     delay,

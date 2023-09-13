@@ -15,7 +15,7 @@
 * is strictly forbidden unless prior written permission is obtained
 * from Adobe.
 ************************************************************************* */
-
+const openwhisk = require('openwhisk');
 const { getConfig } = require('../config');
 const {
     getAuthorizedRequestOption, saveFile, getFileUsingDownloadUrl, fetchWithRetry
@@ -24,8 +24,8 @@ const {
     getAioLogger, handleExtension, delay, logMemUsage, getInstanceKey, PREVIEW, PUBLISH, PROMOTE_ACTION, PROMOTE_BATCH
 } = require('../utils');
 const helixUtils = require('../helixUtils');
-const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
+const FgAction = require('../FgAction');
 const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
 
@@ -35,50 +35,53 @@ const ENABLE_HLX_PREVIEW = false;
 async function main(params) {
     const logger = getAioLogger();
     logMemUsage();
-    let stepMsg;
     const { batchNumber } = params;
-    appConfig.setAppConfig(params);
-    // Tracker uses the below hence change here might need change in tracker as well.
+    const valParams = {
+        statParams: ['fgRootFolder', 'projectExcelPath'],
+        actParams: ['adminPageUri'],
+        checkUser: false,
+        checkStatus: false,
+        checkActivation: false
+    };
+    const ow = openwhisk();
+    // Initialize action
+    const fgAction = new FgAction(`${PROMOTE_BATCH}_${batchNumber}`, params);
+    fgAction.init({ ow, skipUserDetails: true, fgStatusParams: { keySuffix: `Batch_${batchNumber}` } });
+    const { fgStatus, appConfig } = fgAction.getActionParams();
     const { payload, siteFgRootPath } = appConfig.getConfig();
-    const fgStatus = new FgStatus({ action: `${PROMOTE_BATCH}_${batchNumber}`, keySuffix: `Batch_${batchNumber}` });
+
+    let respPayload;
     const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }) });
     await batchManager.init({ batchNumber });
     try {
-        if (!payload.fgRootFolder) {
-            stepMsg = 'Required data is not available to proceed with FG Promote action.';
-            logger.error(stepMsg);
-        } else if (!payload.adminPageUri || !payload.projectExcelPath) {
-            stepMsg = 'Required data is not available to proceed with FG Promote action.';
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.FAILED,
-                statusMessage: stepMsg
-            });
-            logger.error(stepMsg);
-        } else {
-            urlInfo.setUrlInfo(payload.adminPageUri);
-            stepMsg = 'Getting all files to be promoted.';
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: stepMsg
-            });
-            logger.info(stepMsg);
-            stepMsg = await promoteFloodgatedFiles(payload.doPublish, batchManager);
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.COMPLETED,
-                statusMessage: stepMsg
-            });
+        const vStat = await fgAction.validateAction(valParams);
+        if (vStat && vStat.code !== 200) {
+            return vStat;
         }
+
+        urlInfo.setUrlInfo(payload.adminPageUri);
+        respPayload = 'Getting all files to be promoted.';
+        await fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload
+        });
+        logger.info(respPayload);
+        respPayload = await promoteFloodgatedFiles(payload.doPublish, batchManager, appConfig);
+        await fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.COMPLETED,
+            statusMessage: respPayload
+        });
     } catch (err) {
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
             statusMessage: err.message,
         });
         logger.error(err);
-        stepMsg = err;
+        respPayload = err;
     }
 
     return {
-        body: stepMsg,
+        body: respPayload,
     };
 }
 
@@ -113,7 +116,7 @@ async function promoteCopy(srcPath, destinationFolder) {
     return copySuccess;
 }
 
-async function promoteFloodgatedFiles(doPublish, batchManager) {
+async function promoteFloodgatedFiles(doPublish, batchManager, appConfig) {
     const logger = getAioLogger();
 
     async function promoteFile(batchItem) {

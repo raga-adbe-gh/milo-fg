@@ -18,92 +18,68 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const openwhisk = require('openwhisk');
 const {
-    getAioLogger, actInProgress, DELETE_ACTION
+    getAioLogger, DELETE_ACTION
 } = require('../utils');
-const appConfig = require('../appConfig');
-const sharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
-const FgUser = require('../fgUser');
+const FgAction = require('../FgAction');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
     const logger = getAioLogger();
-    let payload;
-    const {
-        spToken, adminPageUri, projectExcelPath, rootFolder
-    } = args;
-    appConfig.setAppConfig(args);
-    const projectPath = `${rootFolder}${projectExcelPath}`;
-    const userDetails = sharepointAuth.getUserDetails(spToken);
-    const fgStatus = new FgStatus({ action: DELETE_ACTION, userDetails });
-    logger.info(`Delete action for ${projectPath} triggered by ${JSON.stringify(userDetails)}`);
+    let respPayload;
+    const valParams = {
+        statParams: ['fgRootFolder', 'projectExcelPath'],
+        actParams: ['adminPageUri'],
+        checkUser: true,
+        checkStatus: true,
+        checkActivation: true
+    };
+    const ow = openwhisk();
+    // Initialize action
+    const fgAction = new FgAction(DELETE_ACTION, args);
+    fgAction.init({ ow });
+    const { fgStatus } = fgAction.getActionParams();
     try {
-        if (!rootFolder || !projectExcelPath) {
-            payload = 'Could not determine the project path. Try reloading the page and trigger the action again.';
-            logger.error(payload);
-        } else if (!adminPageUri) {
-            payload = 'Required data is not available to proceed with Delete action.';
-            logger.error(payload);
-            payload = await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.FAILED,
-                statusMessage: payload
+        // Validations
+        const vStat = await fgAction.validateAction(valParams);
+        if (vStat && vStat.code !== 200) {
+            return vStat;
+        }
+        fgAction.logStart();
+
+        respPayload = await fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.STARTED,
+            statusMessage: 'Triggering delete action'
+        });
+        return ow.actions.invoke({
+            name: 'milo-fg/delete-worker',
+            blocking: false, // this is the flag that instructs to execute the worker asynchronous
+            result: false,
+            params: args
+        }).then(async (result) => {
+            logger.info(result);
+            //  attaching activation id to the status
+            respPayload = await fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+                activationId: result.activationId
             });
-        } else {
-            const ow = openwhisk();
-            const storeValue = await fgStatus.getStatusFromStateLib();
-            const actId = storeValue?.action?.activationId;
-            const svStatus = storeValue?.action?.status;
-            const fgUser = new FgUser({ at: args.spToken });
-            if (!await fgUser.isUser()) {
-                payload = 'Could not determine the user.';
-                logger.error(payload);
-            } else if (!appConfig.getSkipInProgressCheck() &&
-                await actInProgress(ow, actId, FgStatus.isInProgress(svStatus))) {
-                payload = `A delete action with activationid: ${storeValue?.action?.activationId} is already in progress. 
-                Not triggering this action. And the previous action can be retrieved by refreshing the console page`;
-                storeValue.action.status = FgStatus.PROJECT_STATUS.FAILED;
-                storeValue.action.message = payload;
-                payload = storeValue;
-            } else {
-                payload = await fgStatus.updateStatusToStateLib({
-                    status: FgStatus.PROJECT_STATUS.STARTED,
-                    statusMessage: 'Triggering delete action'
-                });
-                return ow.actions.invoke({
-                    name: 'milo-fg/delete-worker',
-                    blocking: false, // this is the flag that instructs to execute the worker asynchronous
-                    result: false,
-                    params: args
-                }).then(async (result) => {
-                    logger.info(result);
-                    //  attaching activation id to the status
-                    payload = await fgStatus.updateStatusToStateLib({
-                        status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                        activationId: result.activationId
-                    });
-                    return {
-                        code: 200,
-                        payload
-                    };
-                }).catch(async (err) => {
-                    payload = await fgStatus.updateStatusToStateLib({
-                        status: FgStatus.PROJECT_STATUS.FAILED,
-                        statusMessage: `Failed to invoke actions ${err.message}`
-                    });
-                    logger.error('Failed to invoke actions', err);
-                    return {
-                        code: 500,
-                        payload
-                    };
-                });
-            }
+            return {
+                code: 200,
+                payload: respPayload
+            };
+        }).catch(async (err) => {
+            respPayload = await fgStatus.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.FAILED,
+                statusMessage: `Failed to invoke actions ${err.message}`
+            });
+            logger.error('Failed to invoke actions', err);
             return {
                 code: 500,
-                payload
+                payload: respPayload
             };
-        }
+        });
     } catch (err) {
-        payload = fgStatus.updateStatusToStateLib({
+        respPayload = fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.FAILED,
             statusMessage: `Failed to invoke actions ${err.message}`
         });
@@ -112,7 +88,7 @@ async function main(args) {
 
     return {
         code: 500,
-        payload,
+        payload: respPayload,
     };
 }
 

@@ -14,69 +14,67 @@
 * is strictly forbidden unless prior written permission is obtained
 * from Adobe.
 ************************************************************************* */
-
+const openwhisk = require('openwhisk');
 const { deleteFloodgateDir, updateExcelTable } = require('../sharepoint');
 const {
     getAioLogger, logMemUsage, DELETE_ACTION
 } = require('../utils');
-const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
+const FgAction = require('../FgAction');
 
 async function main(params) {
-    const logger = getAioLogger();
     logMemUsage();
-    let payload;
-    const {
-        adminPageUri, projectExcelPath, rootFolder,
-    } = params;
-    appConfig.setAppConfig(params);
-    const { fgRootFolder } = appConfig.getPayload();
-    const fgStatus = new FgStatus({ action: DELETE_ACTION });
-    try {
-        if (!rootFolder || !projectExcelPath) {
-            payload = 'Could not determine the project path. Try reloading the page and trigger the action again.';
-            logger.error(payload);
-        } else if (!adminPageUri) {
-            payload = 'Required data is not available to proceed with Delete action.';
-            fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.FAILED,
-                statusMessage: payload
-            });
-            logger.error(payload);
-        } else {
-            urlInfo.setUrlInfo(adminPageUri);
-            payload = 'Started deleting content';
-            logger.info(payload);
-            fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload
-            });
 
-            const deleteStatus = await deleteFloodgateDir();
-            payload = deleteStatus === false ?
-                'Error occurred when deleting content. Check project excel sheet for additional information.' :
-                'Delete action was completed';
-            await fgStatus.updateStatusToStateLib({
-                status: deleteStatus === false ? FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR : FgStatus.PROJECT_STATUS.COMPLETED,
-                statusMessage: payload
-            });
-            const { startTime: startDelete, endTime: endDelete } = fgStatus.getStartEndTime();
-            const excelValues = [['DELETE', startDelete, endDelete, payload]];
-            await updateExcelTable(projectExcelPath, 'DELETE_STATUS', excelValues);
-            logger.info('Project excel file updated with delete status.');
+    const logger = getAioLogger();
+    let respPayload;
+    const valParams = {
+        statParams: ['fgRootFolder', 'projectExcelPath'],
+        actParams: ['adminPageUri'],
+    };
+    const ow = openwhisk();
+    // Initialize action
+    const fgAction = new FgAction(DELETE_ACTION, params);
+    fgAction.init({ ow, skipUserDetails: true });
+    const { fgStatus, appConfig } = fgAction.getActionParams();
+    const { adminPageUri, projectExcelPath } = appConfig.getPayload();
+    try {
+        // Validations
+        const vStat = await fgAction.validateAction(valParams);
+        if (vStat && vStat.code !== 200) {
+            return vStat;
         }
+        urlInfo.setUrlInfo(adminPageUri);
+        respPayload = 'Started deleting content';
+        logger.info(respPayload);
+        fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload
+        });
+
+        const deleteStatus = await deleteFloodgateDir();
+        respPayload = deleteStatus === false ?
+            'Error occurred when deleting content. Check project excel sheet for additional information.' :
+            'Delete action was completed';
+        await fgStatus.updateStatusToStateLib({
+            status: deleteStatus === false ? FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR : FgStatus.PROJECT_STATUS.COMPLETED,
+            statusMessage: respPayload
+        });
+        const { startTime: startDelete, endTime: endDelete } = fgStatus.getStartEndTime();
+        const excelValues = [['DELETE', startDelete, endDelete, respPayload]];
+        await updateExcelTable(projectExcelPath, 'DELETE_STATUS', excelValues);
+        logger.info('Project excel file updated with delete status.');
     } catch (err) {
         fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
             statusMessage: err.message
         });
         logger.error(err);
-        payload = err;
+        respPayload = err;
     }
     logMemUsage();
     return {
-        body: payload,
+        body: respPayload,
     };
 }
 

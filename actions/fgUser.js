@@ -27,7 +27,12 @@ class FgUser {
 
     constructor({ at }) {
         this.at = at;
-        this.userOid = sharepointAuth.getUserDetails(at)?.oid;
+        this.userDetails = sharepointAuth.getUserDetails(at);
+        this.userOid = this.userDetails?.oid;
+    }
+
+    getUserDetails() {
+        return this.userDetails;
     }
 
     async isInGroups(grpIds) {

@@ -15,6 +15,7 @@
 * from Adobe.
 ************************************************************************* */
 
+const openwhisk = require('openwhisk');
 const { getProjectDetails, updateProjectWithDocs } = require('../project');
 const {
     updateExcelTable, getFile, saveFile, copyFile, bulkCreateFolders
@@ -23,9 +24,9 @@ const {
     getAioLogger, handleExtension, delay, PREVIEW, logMemUsage, COPY_ACTION
 } = require('../utils');
 const helixUtils = require('../helixUtils');
-const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
+const FgAction = require('../FgAction');
 const sharepointAuth = require('../sharepointAuth');
 
 const BATCH_REQUEST_COPY = 20;
@@ -33,64 +34,63 @@ const DELAY_TIME_COPY = 3000;
 const ENABLE_HLX_PREVIEW = false;
 
 async function main(params) {
-    const logger = getAioLogger();
     logMemUsage();
-    let payload;
-    const {
-        adminPageUri, projectExcelPath, rootFolder
-    } = params;
-    appConfig.setAppConfig(params);
-    const fgStatus = new FgStatus({ action: COPY_ACTION });
+    const logger = getAioLogger();
+    let respPayload;
+    const valParams = {
+        statParams: ['rootFolder', 'projectExcelPath'],
+        actParams: ['adminPageUri'],
+    };
+    const ow = openwhisk();
+    // Initialize action
+    const fgAction = new FgAction(COPY_ACTION, params);
+    fgAction.init({ ow, skipUserDetails: true });
+    const { fgStatus, appConfig } = fgAction.getActionParams();
+    const { adminPageUri, projectExcelPath } = appConfig.getPayload();
     try {
-        if (!rootFolder || !projectExcelPath) {
-            payload = 'Could not determine the project path. Try reloading the page and trigger the action again.';
-            logger.error(payload);
-        } else if (!adminPageUri) {
-            payload = 'Required data is not available to proceed with FG Copy action.';
-            fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.FAILED,
-                statusMessage: payload
-            });
-            logger.error(payload);
-        } else {
-            urlInfo.setUrlInfo(adminPageUri);
-            payload = 'Getting all files to be floodgated from the project excel file';
-            logger.info(payload);
-            fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload
-            });
-
-            const projectDetail = await getProjectDetails(projectExcelPath);
-
-            payload = 'Injecting sharepoint data';
-            logger.info(payload);
-            fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload
-            });
-            await updateProjectWithDocs(projectDetail);
-
-            payload = 'Start floodgating content';
-            logger.info(payload);
-            fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: payload
-            });
-
-            payload = await floodgateContent(projectExcelPath, projectDetail, fgStatus);
+        // Validations
+        const vStat = await fgAction.validateAction(valParams);
+        if (vStat && vStat.code !== 200) {
+            return vStat;
         }
+
+        urlInfo.setUrlInfo(adminPageUri);
+        respPayload = 'Getting all files to be floodgated from the project excel file';
+        logger.info(respPayload);
+        fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload
+        });
+
+        const projectDetail = await getProjectDetails(projectExcelPath);
+
+        respPayload = 'Injecting sharepoint data';
+        logger.info(respPayload);
+        fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload
+        });
+        await updateProjectWithDocs(projectDetail);
+
+        respPayload = 'Start floodgating content';
+        logger.info(respPayload);
+        fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload
+        });
+
+        respPayload = await floodgateContent(projectExcelPath, projectDetail, fgStatus);
     } catch (err) {
         fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
             statusMessage: err.message
         });
         logger.error(err);
-        payload = err;
+        respPayload = err;
     }
     logMemUsage();
     return {
-        body: payload,
+        body: respPayload,
     };
 }
 

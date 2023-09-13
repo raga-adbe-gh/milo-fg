@@ -25,13 +25,23 @@ const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
+const FgAction = require('../FgAction');
 
 const logger = getAioLogger();
 
 async function main(params) {
-    let stepMsg;
-    appConfig.setAppConfig(params);
+    let respPayload;
 
+    const valParams = {
+        statParams: ['fgRootFolder'],
+        actParams: ['adminPageUri', 'projectExcelPath'],
+        checkUser: false,
+        checkStatus: false,
+        checkActivation: false
+    };
+    const ow = openwhisk();
+
+    appConfig.setAppConfig(params);
     const batchManager = new BatchManager({ key: PROMOTE_ACTION });
     await batchManager.init();
     // Read instance_info.json
@@ -42,64 +52,55 @@ async function main(params) {
 
     const { batchesInfo } = instanceContent.dtls;
 
-    const ow = openwhisk();
-    // Reset with inputs
-    appConfig.setAppConfig({
-        ...params, ...instanceContent.dtls
-    });
-    const payload = appConfig.getPayload();
+    // Initialize action
+    const fgAction = new FgAction(PROMOTE_ACTION, { ...params, ...instanceContent.dtls });
+    fgAction.init({ ow, skipUserDetails: true });
+    const { fgStatus } = fgAction.getActionParams();
+    const { payload } = appConfig.getConfig();
 
-    const fgStatus = new FgStatus({ action: PROMOTE_ACTION });
     try {
-        if (!payload.fgRootFolder) {
-            stepMsg = 'Required data is not available to proceed with FG Promote action.';
-            logger.error(stepMsg);
-        } else if (!payload.adminPageUri || !payload.projectExcelPath) {
-            stepMsg = 'Required data is not available to proceed with FG Promote action.';
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.FAILED,
-                statusMessage: stepMsg
-            });
-            logger.error(stepMsg);
-        } else {
-            urlInfo.setUrlInfo(payload.adminPageUri);
-            stepMsg = 'Getting status of all reference activation.';
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: stepMsg
-            });
-
-            // Check to see all batches are complete
-            const batchCheckResp = await checkBatchesInProg(payload.fgRootFolder, batchesInfo, ow);
-            const { anyInProg, allDone } = batchCheckResp;
-            await batchManager.writeToInstanceFile(instanceContent);
-
-            // Collect status and mark as complete
-            if (allDone) {
-                await completePromote(payload.projectExcelPath, batchesInfo, batchManager, fgStatus);
-                await batchManager.writeToInstanceFile(instanceContent);
-            } else if (!anyInProg) {
-                // Trigger next activation
-                const nextItem = batchesInfo.find((b) => !b.activationId);
-                const batchNumber = nextItem?.batchNumber;
-                if (batchNumber) {
-                    const newActDtls = await triggerPromoteWorkerAction(ow,
-                        {
-                            ...appConfig.getPassthruParams(),
-                            batchNumber
-                        },
-                        fgStatus);
-                    nextItem.activationId = newActDtls?.activationId;
-                }
-                await batchManager.writeToInstanceFile(instanceContent);
-            }
-
-            stepMsg = 'Promote trigger and track completed.';
-            logger.info(stepMsg);
+        const vStat = await fgAction.validateAction(valParams);
+        if (vStat && vStat.code !== 200) {
+            return vStat;
         }
+
+        urlInfo.setUrlInfo(payload.adminPageUri);
+        respPayload = 'Getting status of all reference activation.';
+        await fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload
+        });
+
+        // Check to see all batches are complete
+        const batchCheckResp = await checkBatchesInProg(payload.fgRootFolder, batchesInfo, ow);
+        const { anyInProg, allDone } = batchCheckResp;
+        await batchManager.writeToInstanceFile(instanceContent);
+
+        // Collect status and mark as complete
+        if (allDone) {
+            await completePromote(payload.projectExcelPath, batchesInfo, batchManager, fgStatus);
+            await batchManager.writeToInstanceFile(instanceContent);
+        } else if (!anyInProg) {
+            // Trigger next activation
+            const nextItem = batchesInfo.find((b) => !b.activationId);
+            const batchNumber = nextItem?.batchNumber;
+            if (batchNumber) {
+                const newActDtls = await triggerPromoteWorkerAction(ow,
+                    {
+                        ...appConfig.getPassthruParams(),
+                        batchNumber
+                    },
+                    fgStatus);
+                nextItem.activationId = newActDtls?.activationId;
+            }
+            await batchManager.writeToInstanceFile(instanceContent);
+        }
+
+        respPayload = 'Promote trigger and track completed.';
+        logger.info(respPayload);
     } catch (err) {
         logger.error(err);
-        stepMsg = err;
+        respPayload = err;
         // In case of error log status with end time
         try {
             await fgStatus.updateStatusToStateLib({
@@ -111,7 +112,7 @@ async function main(params) {
         }
     }
     return {
-        body: stepMsg,
+        body: respPayload,
     };
 }
 

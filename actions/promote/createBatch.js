@@ -14,7 +14,7 @@
 * is strictly forbidden unless prior written permission is obtained
 * from Adobe.
 ************************************************************************* */
-
+const openwhisk = require('openwhisk');
 const { getConfig } = require('../config');
 const {
     getAuthorizedRequestOption, fetchWithRetry
@@ -22,8 +22,8 @@ const {
 const {
     getAioLogger, logMemUsage, getInstanceKey, PROMOTE_ACTION
 } = require('../utils');
-const appConfig = require('../appConfig');
 const urlInfo = require('../urlInfo');
+const FgAction = require('../FgAction');
 const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
 
@@ -48,64 +48,68 @@ const MAX_CHILDREN = 5000;
  */
 async function main(params) {
     logMemUsage();
-    let stepMsg;
-    appConfig.setAppConfig(params);
+    let respPayload;
+    const valParams = {
+        statParams: ['fgRootFolder'],
+        actParams: ['adminPageUri', 'projectExcelPath'],
+        checkUser: false,
+        checkStatus: false,
+        checkActivation: false
+    };
+    const ow = openwhisk();
+    // Initialize action
+    const fgAction = new FgAction(PROMOTE_ACTION, params);
+    fgAction.init({ ow, skipUserDetails: true });
+    const { fgStatus, appConfig } = fgAction.getActionParams();
     const { payload, siteFgRootPath } = appConfig.getConfig();
-    const fgStatus = new FgStatus({ action: PROMOTE_ACTION });
     const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }) });
     await batchManager.init();
     // For current cleanup files before starting
     await batchManager.cleanupFiles();
     try {
-        if (!payload.fgRootFolder) {
-            stepMsg = 'Required data is not available to proceed with FG Promote action.';
-            logger.error(stepMsg);
-        } else if (!payload.adminPageUri || !payload.projectExcelPath) {
-            stepMsg = 'Required data is not available to proceed with FG Promote action.';
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.FAILED,
-                statusMessage: stepMsg
-            });
-        } else {
-            urlInfo.setUrlInfo(payload.adminPageUri);
-            stepMsg = 'Getting all files to be promoted.';
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: stepMsg
-            });
-            logger.info(stepMsg);
-            stepMsg = 'Creating batches.';
-            logger.info(stepMsg);
-            stepMsg = await createBatch(batchManager);
-            await fgStatus.updateStatusToStateLib({
-                status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-                statusMessage: stepMsg,
-                batchesInfo: batchManager.getBatchesInfo()
-            });
-            logger.info(stepMsg);
-
-            // Finalize and Trigger N Track the batches
-            await batchManager.finalizeInstance(appConfig.getPassthruParams());
-            logger.info('Instance finalized and started');
+        const vStat = await fgAction.validateAction(valParams);
+        if (vStat && vStat.code !== 200) {
+            return vStat;
         }
+
+        urlInfo.setUrlInfo(payload.adminPageUri);
+        respPayload = 'Getting all files to be promoted.';
+        await fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload
+        });
+        logger.info(respPayload);
+        respPayload = 'Creating batches.';
+        logger.info(respPayload);
+        respPayload = await createBatch(batchManager, appConfig);
+        await fgStatus.updateStatusToStateLib({
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload,
+            batchesInfo: batchManager.getBatchesInfo()
+        });
+        logger.info(respPayload);
+
+        // Finalize and Trigger N Track the batches
+        await batchManager.finalizeInstance(appConfig.getPassthruParams());
+        logger.info('Instance finalized and started');
     } catch (err) {
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
             statusMessage: err.message,
         });
         logger.error(err);
-        stepMsg = err;
+        respPayload = err;
     }
 
     return {
-        body: stepMsg,
+        body: respPayload,
     };
 }
 
 /**
  * Find all files in the pink tree to promote. Add to batches
  */
-async function createBatch(batchManager) {
+async function createBatch(batchManager, appConfig) {
     const { sp } = await getConfig();
     const options = await getAuthorizedRequestOption({ method: 'GET' });
     const promoteIgnoreList = appConfig.getPromoteIgnorePaths();

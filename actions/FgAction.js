@@ -31,8 +31,6 @@ const ALL_OK_SC = 200;
  * The common parameter validation, user check,
  */
 class FgAction {
-    validations = {};
-
     constructor(action, params) {
         this.action = action || FG_PROOCESS_ACTION;
         appConfig.setAppConfig(params);

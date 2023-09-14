@@ -24,7 +24,7 @@ const FG_PROOCESS_ACTION = 'fgProcessAction';
 const logger = getAioLogger();
 const BAD_REQUEST_SC = 400;
 const AUTH_FAILED_SC = 401;
-const GEN_ERROR_SC = 401;
+const GEN_ERROR_SC = 500;
 const ALL_OK_SC = 200;
 
 /**
@@ -178,6 +178,7 @@ class FgAction {
                 payload: vStat.message,
             };
         }
+
         vStat = checkUser ? await this.validateUser() : OKVAL;
         if (!vStat.ok) {
             return {

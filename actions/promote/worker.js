@@ -59,10 +59,12 @@ async function main(params) {
             return vStat;
         }
 
+        fgStatus.clearState();
+
         urlInfo.setUrlInfo(payload.adminPageUri);
         respPayload = 'Getting all files to be promoted.';
         await fgStatus.updateStatusToStateLib({
-            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            status: FgStatus.PROJECT_STATUS.STARTED,
             statusMessage: respPayload
         });
         logger.info(respPayload);

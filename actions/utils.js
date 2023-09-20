@@ -107,7 +107,31 @@ function getInstanceKey(params) {
     return params?.fgRootFolder?.replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
 }
 
+/**
+ *
+ * Returns an error response object and attempts to log.info the status code and error message
+ *
+ * @param {number} statusCode the error status code.
+ *        e.g. 400
+ * @param {string} message the error message.
+ *        e.g. 'missing xyz parameter'
+ *
+ * @returns {object} the error object, ready to be returned from the action main's function.
+ *
+ */
+function errorResponse(statusCode, message) {
+    return {
+        error: {
+            statusCode,
+            body: {
+                error: message,
+            },
+        },
+    };
+}
+
 module.exports = {
+    errorResponse,
     getAioLogger,
     handleExtension,
     getDocPathFromUrl,

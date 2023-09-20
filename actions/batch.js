@@ -109,9 +109,13 @@ class Batch {
      * @returns Get manifest file content e.g. json for updating status/reporting
      */
     async getResultsContent() {
-        const buffer = await this.filesSdk.read(this.resultsFile);
-        const data = buffer.toString();
-        return JSON.parse(data);
+        const fileProps = await this.filesSdk.list(this.resultsFile);
+        if (fileProps && fileProps.length) {
+            const buffer = await this.filesSdk.read(this.resultsFile);
+            const data = buffer.toString();
+            return JSON.parse(data);
+        }
+        return null;
     }
 }
 

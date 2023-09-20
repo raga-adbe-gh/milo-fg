@@ -66,6 +66,7 @@ class BatchManager {
         this.instanceKey = (params.instanceKey || 'default').replaceAll('/', '_');
         this.instancePath = `${this.batchFilesPath}/${this.key}/instance${this.instanceKey}`;
         this.instanceFile = `${this.instancePath}/instance_info.json`;
+        this.resultsFile = `${this.instancePath}/instance_results.json`;
         return this;
     }
 
@@ -209,13 +210,38 @@ class BatchManager {
         await this.writeToBmTracker(params);
     }
 
-    async markComplete() {
+    async markComplete(results) {
         const params = {};
         params[`${this.instanceKey}`] = {
             done: true,
             proceed: false,
         };
+        if (results) await this.writeResults(results);
         await this.writeToBmTracker(params);
+    }
+
+    /**
+     * @param {*} data Writes overall resuts to instance-results file
+     */
+    async writeResults(data) {
+        try {
+            await this.filesSdk.write(this.resultsFile, JSON.stringify(data));
+        } catch (err) {
+            logger.info(`Error while writing to results file ${err.message}`);
+        }
+    }
+
+    /**
+     * @returns Get promote results (only failed files are returned)
+     */
+    async getResultsContent() {
+        const fileProps = await this.filesSdk.list(this.resultsFile);
+        if (fileProps && fileProps.length) {
+            const buffer = await this.filesSdk.read(this.resultsFile);
+            const data = buffer.toString();
+            return JSON.parse(data);
+        }
+        return null;
     }
 
     /** Cleanup files for the current action */

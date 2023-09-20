@@ -85,6 +85,12 @@ application:
               LOG_LEVEL: debug
             limits:
               timeout: 600000
+          promote-status:
+            function: actions/promoteStatus/promoteStatus.js
+            web: 'yes'
+            runtime: nodejs:16
+            inputs:
+              LOG_LEVEL: debug
           status:
             function: actions/status/status.js
             web: 'yes'

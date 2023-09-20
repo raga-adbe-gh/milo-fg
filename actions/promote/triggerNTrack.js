@@ -125,6 +125,7 @@ async function main(params) {
  */
 async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
     let fgStatus;
+    let batchState;
     let batchInProg = false;
     let allDone = true;
     let counter = 0;
@@ -135,14 +136,18 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
                 action: `${PROMOTE_BATCH}_${batchNumber}`,
                 keySuffix: `Batch_${batchNumber}`
             });
-            batchInProg = await fgStatus?.getStatusFromStateLib().then((result) => {
-                if (result?.action && FgStatus.isInProgress(result.action.status)) {
-                    return true;
-                }
-                return false;
-            });
+            batchState = await fgStatus.getStatusFromStateLib().then((result) => result?.action);
+            batchInProg = false || FgStatus.isInProgress(batchState.status);
             if (batchInProg) batchInProg = await actInProgress(ow, activationId, batchInProg);
-            actDtls[counter].done = !batchInProg;
+            if (!batchInProg) {
+                actDtls[counter].done = true;
+                actDtls[counter].startTime = batchState?.startTime;
+                actDtls[counter].endTime = batchState?.endTime;
+                actDtls[counter].status = batchState?.status;
+            } else if (batchState) {
+                actDtls[counter].startTime = batchState.startTime;
+                actDtls[counter].status = batchState.status;
+            }
             allDone &&= !batchInProg;
         } else {
             allDone &&= done;
@@ -229,7 +234,7 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
     await updateExcelTable(projectExcelPath, 'PROMOTE_STATUS', excelValues);
     logger.info('Project excel file updated with promote status.');
 
-    await batchManager.markComplete();
+    await batchManager.markComplete(fgErrors ? { failedPromotes, failedPreviews, failedPublishes } : null);
     logger.info('Marked complete in batch manager.');
 }
 

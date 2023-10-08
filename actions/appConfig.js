@@ -55,6 +55,8 @@ class AppConfig {
         this.configMap.siteRootPath = this.getSiteRootPath(params.shareUrl);
         this.configMap.siteFgRootPath = this.getSiteRootPath(params.fgShareUrl);
         this.configMap.helixAdminApiKeys = this.getJsonFromStr(params.helixAdminApiKeys);
+        this.configMap.bulkPreviewCheckInterval = parseInt(params.bulkPreviewCheckInterval || '30', 10);
+        this.configMap.maxBulkPreviewChecks = parseInt(params.maxBulkPreviewChecks || '30', 10);
         this.extractPrivateKey();
     }
 

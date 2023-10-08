@@ -163,17 +163,10 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus) {
     logger.info('Completed floodgating documents listed in the project excel');
 
     logger.info('Previewing floodgated files... ');
-    const previewStatuses = [];
+    let previewStatuses = [];
     if (ENABLE_HLX_PREVIEW) {
-        for (let i = 0; i < copyStatuses.length; i += 1) {
-            if (copyStatuses[i].success) {
-                // eslint-disable-next-line no-await-in-loop
-                const result = await helixUtils.simulatePreviewPublish(handleExtension(copyStatuses[i].srcPath), PREVIEW, true);
-                previewStatuses.push(result);
-            }
-            // eslint-disable-next-line no-await-in-loop
-            await delay();
-        }
+        const paths = copyStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
+        previewStatuses = await helixUtils.bulkPreviewPublish(paths, PREVIEW, true);
     }
     logger.info('Completed generating Preview for floodgated files.');
     const failedCopies = copyStatuses.filter((status) => !status.success)

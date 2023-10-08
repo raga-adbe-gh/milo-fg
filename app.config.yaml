@@ -24,6 +24,8 @@ application:
           fgDirPattern: $FG_DIR_PATTERN
           siteRootPathRex: $SITE_ROOT_PATH_REX
           helixAdminApiKeys: $HELIX_ADMIN_API_KEYS
+          bulkPreviewCheckInterval: $BULK_PREVIEW_CHECK_INTERVAL
+          maxBulkPreviewChecks: $MAX_BULK_PREVIEW_CHECKS
         actions:
           copy:
             function: actions/copy/copy.js

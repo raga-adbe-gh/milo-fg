@@ -28,4 +28,7 @@ describe('handleExtension', () => {
     test('xlsx path', () => {
         expect(utils.handleExtension('/path/to/file.xlsx')).toEqual('/path/to/file.json');
     });
+    test('svg path', () => {
+        expect(utils.handleExtension('/path/to/file.svg')).toEqual('/path/to/file.svg');
+    });
 });

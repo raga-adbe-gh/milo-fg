@@ -109,7 +109,7 @@ class HelixUtils {
                 options.headers.append('Authorization', `token ${helixAdminApiKeys[repo]}`);
             }
             const bulkOperation = operation === LIVE ? PUBLISH : operation;
-            const statusUrl = `https://admin.hlx.page/job/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/${bulkOperation}/${jobName}`;
+            const statusUrl = `https://admin.hlx.page/job/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/${bulkOperation}/${jobName}/details`;
             const response = await fetch(statusUrl, options);
             logger.info(`Status call response ${response.ok} with status ${response.status} `);
             if (!response.ok && retryAttempt <= appConfig.getConfig().maxBulkPreviewChecks) {
@@ -117,7 +117,7 @@ class HelixUtils {
                 await this.bulkJobStatus(jobName, operation, repo, bulkPreviewStatus, retryAttempt + 1);
             } else if (response.ok) {
                 const jobStatusJson = await response.json();
-                logger.info(`${operation} progress ${jobStatusJson.data?.num} / ${jobStatusJson.data?.total}`);
+                logger.info(`${operation} progress ${JSON.stringify(jobStatusJson.progress)}`);
                 jobStatusJson.data?.resources?.forEach((rs) => {
                     if (operation === LIVE) {
                         bulkPreviewStatus[rs.webPath] = { success: JOB_STATUS_CODES.includes(rs.status) };

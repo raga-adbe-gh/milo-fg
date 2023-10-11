@@ -24,32 +24,15 @@ const MAX_RETRIES = 5;
 const RETRY_DELAY = 5;
 const JOB_STATUS_CODES = [200, 304];
 const AUTH_ERRORS = [401, 403];
+const PREVIEW = 'preview';
+const PUBLISH = 'publish';
+const LIVE = 'live';
+
 const logger = getAioLogger();
 
 class HelixUtils {
-    async simulatePreviewPublish(path, operation, isFloodgate, retryAttempt = 1) {
-        let previewStatus = { success: true, path };
-        try {
-            const repo = isFloodgate ? `${urlInfo.getRepo()}-pink` : urlInfo.getRepo();
-            const previewUrl = `https://admin.hlx.page/${operation}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}${path}`;
-            const options = { method: 'POST' };
-            const { helixAdminApiKeys } = appConfig.getConfig();
-            if (helixAdminApiKeys && helixAdminApiKeys[repo]) {
-                options.headers = new fetch.Headers();
-                options.headers.append('Authorization', `token ${helixAdminApiKeys[repo]}`);
-            }
-            const response = await fetch(
-                `${previewUrl}`,
-                options,
-            );
-            if (!response.ok && retryAttempt <= MAX_RETRIES) {
-                previewStatus = await this.simulatePreviewPublish(path, operation, retryAttempt + 1, isFloodgate);
-            }
-            previewStatus.responseJson = await response.json();
-        } catch (error) {
-            previewStatus.success = false;
-        }
-        return previewStatus;
+    getOperations() {
+        return { PREVIEW, LIVE };
     }
 
     /**
@@ -62,10 +45,13 @@ class HelixUtils {
      * @returns List of path with preview/pubish status e.g. [{path:'/draft/file1', success: true}..]
      */
     async bulkPreviewPublish(paths, operation, isFloodgate, retryAttempt = 1) {
-        let prevPubStatuses = paths.map((path) => ({ success: false, path }));
+        let prevPubStatuses = paths.filter((p) => p).map((path) => ({ success: false, path }));
+        if (!prevPubStatuses.length) {
+            return prevPubStatuses;
+        }
         try {
             const repo = isFloodgate ? `${urlInfo.getRepo()}-pink` : urlInfo.getRepo();
-            const previewUrl = `https://admin.hlx.page/${operation?.toLowerCase()}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
+            const bulkUrl = `https://admin.hlx.page/${operation}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
             const options = {
                 method: 'POST',
                 body: JSON.stringify({ forceUpdate: true, paths }),
@@ -76,8 +62,8 @@ class HelixUtils {
             if (helixAdminApiKeys && helixAdminApiKeys[repo]) {
                 options.headers.append('Authorization', `token ${helixAdminApiKeys[repo]}`);
             }
-            const response = await fetch(previewUrl, options);
-            logger.info(`Preview call response ${response.status} for ${previewUrl}`);
+            const response = await fetch(bulkUrl, options);
+            logger.info(`${operation} call response ${response.status} for ${bulkUrl}`);
             if (!response.ok && !AUTH_ERRORS.includes(response.status) && retryAttempt <= MAX_RETRIES) {
                 await delay(RETRY_DELAY * 1000);
                 prevPubStatuses = await this.bulkPreviewPublish(paths, operation, isFloodgate, retryAttempt + 1);
@@ -96,6 +82,7 @@ class HelixUtils {
                 }
             }
         } catch (error) {
+            logger.info(`Error in bulk ${operation} status: ${error.message}`);
             prevPubStatuses.forEach((e) => {
                 e.success = false;
             });
@@ -121,20 +108,25 @@ class HelixUtils {
                 options.headers = new fetch.Headers();
                 options.headers.append('Authorization', `token ${helixAdminApiKeys[repo]}`);
             }
-            const statusUrl = `https://admin.hlx.page/job/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/${operation.toLowerCase()}/${jobName}`;
+            const bulkOperation = operation === LIVE ? PUBLISH : operation;
+            const statusUrl = `https://admin.hlx.page/job/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/${bulkOperation}/${jobName}`;
             const response = await fetch(statusUrl, options);
             logger.info(`Status call response ${response.ok} with status ${response.status} `);
             if (!response.ok && retryAttempt <= appConfig.getConfig().maxBulkPreviewChecks) {
                 await delay(appConfig.getConfig().bulkPreviewCheckInterval * 1000);
                 await this.bulkJobStatus(jobName, operation, repo, bulkPreviewStatus, retryAttempt + 1);
             } else if (response.ok) {
-                const previewStatusJson = await response.json();
-                logger.info(`Preview progress ${previewStatusJson.data?.num} / ${previewStatusJson.data?.total}`);
-                if (previewStatusJson.state === 'stopped' || previewStatusJson.cancelled) {
-                    previewStatusJson.data?.resources?.forEach((rs) => {
+                const jobStatusJson = await response.json();
+                logger.info(`${operation} progress ${jobStatusJson.data?.num} / ${jobStatusJson.data?.total}`);
+                jobStatusJson.data?.resources?.forEach((rs) => {
+                    if (operation === LIVE) {
+                        bulkPreviewStatus[rs.webPath] = { success: JOB_STATUS_CODES.includes(rs.status) };
+                    } else {
                         bulkPreviewStatus[rs.path] = { success: JOB_STATUS_CODES.includes(rs.status) };
-                    });
-                } else if (retryAttempt <= appConfig.getConfig().maxBulkPreviewChecks) {
+                    }
+                });
+                if (jobStatusJson.state !== 'stopped' && !jobStatusJson.cancelled &&
+                    retryAttempt <= appConfig.getConfig().maxBulkPreviewChecks) {
                     await delay(appConfig.getConfig().bulkPreviewCheckInterval * 1000);
                     await this.bulkJobStatus(jobName, operation, repo, bulkPreviewStatus, retryAttempt + 1);
                 }

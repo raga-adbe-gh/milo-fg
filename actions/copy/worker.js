@@ -21,7 +21,7 @@ const {
     updateExcelTable, getFile, saveFile, copyFile, bulkCreateFolders
 } = require('../sharepoint');
 const {
-    getAioLogger, handleExtension, delay, PREVIEW, logMemUsage, COPY_ACTION
+    getAioLogger, handleExtension, delay, logMemUsage, COPY_ACTION
 } = require('../utils');
 const helixUtils = require('../helixUtils');
 const urlInfo = require('../urlInfo');
@@ -166,7 +166,7 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus) {
     let previewStatuses = [];
     if (ENABLE_HLX_PREVIEW) {
         const paths = copyStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
-        previewStatuses = await helixUtils.bulkPreviewPublish(paths, PREVIEW, true);
+        previewStatuses = await helixUtils.bulkPreviewPublish(paths, helixUtils.getOperations().PREVIEW, true);
     }
     logger.info('Completed generating Preview for floodgated files.');
     const failedCopies = copyStatuses.filter((status) => !status.success)

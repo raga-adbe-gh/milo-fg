@@ -21,7 +21,7 @@ const {
     getAuthorizedRequestOption, saveFile, getFileUsingDownloadUrl, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, handleExtension, delay, logMemUsage, getInstanceKey, PREVIEW, PUBLISH, PROMOTE_ACTION, PROMOTE_BATCH
+    getAioLogger, handleExtension, delay, logMemUsage, getInstanceKey, PROMOTE_ACTION, PROMOTE_BATCH
 } = require('../utils');
 const helixUtils = require('../helixUtils');
 const urlInfo = require('../urlInfo');
@@ -179,14 +179,15 @@ async function promoteFloodgatedFiles(doPublish, batchManager, appConfig) {
     let previewStatuses = [];
     let publishStatuses = [];
     if (ENABLE_HLX_PREVIEW) {
-        previewStatuses = await bulkPreviewOrPublish(PREVIEW);
+        const prevPaths = promoteStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
+        previewStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().PREVIEW, false);
         stepMsg = 'Completed generating Preview for promoted files.';
         logger.info(stepMsg);
 
         if (doPublish) {
             stepMsg = 'Publishing promoted files.';
             logger.info(stepMsg);
-            publishStatuses = await previewOrPublishPages(PUBLISH);
+            publishStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().LIVE, false);
             stepMsg = 'Completed Publishing for promoted files';
             logger.info(stepMsg);
         }
@@ -213,24 +214,6 @@ async function promoteFloodgatedFiles(doPublish, batchManager, appConfig) {
     logMemUsage();
     stepMsg = `All tasks for floodgate promote of ${currBatchLbl} is completed`;
     return stepMsg;
-
-    async function previewOrPublishPages(operation) {
-        const statuses = [];
-        for (let ip = 0; ip < promoteStatuses.length; ip += 1) {
-            if (promoteStatuses[ip].success) {
-                // eslint-disable-next-line no-await-in-loop
-                const result = await helixUtils.simulatePreviewPublish(handleExtension(promoteStatuses[ip].srcPath), operation, false);
-                statuses.push(result);
-            }
-            await delay();
-        }
-        return statuses;
-    }
-
-    async function bulkPreviewOrPublish(operation) {
-        const paths = promoteStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
-        return helixUtils.bulkPreviewPublish(paths, operation, false);
-    }
 }
 
 exports.main = main;

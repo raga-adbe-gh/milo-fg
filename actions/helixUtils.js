@@ -44,7 +44,7 @@ class HelixUtils {
      * @param {*} retryAttempt Iteration number of the retry attempt (Default = 1)
      * @returns List of path with preview/pubish status e.g. [{path:'/draft/file1', success: true}..]
      */
-    async bulkPreviewPublish(paths, operation, isFloodgate, retryAttempt = 1) {
+    async bulkPreviewPublish(paths, operation, { isFloodgate = false, fgColor = 'pink' } = {}, retryAttempt = 1) {
         let prevPubStatuses = paths.filter((p) => p).map((path) => ({ success: false, path }));
         if (!prevPubStatuses.length) {
             return prevPubStatuses;
@@ -66,7 +66,7 @@ class HelixUtils {
             logger.info(`${operation} call response ${response.status} for ${bulkUrl}`);
             if (!response.ok && !AUTH_ERRORS.includes(response.status) && retryAttempt <= MAX_RETRIES) {
                 await delay(RETRY_DELAY * 1000);
-                prevPubStatuses = await this.bulkPreviewPublish(paths, operation, isFloodgate, retryAttempt + 1);
+                prevPubStatuses = await this.bulkPreviewPublish(paths, operation, { isFloodgate, fgColor }, retryAttempt + 1);
             } else if (response.ok) {
                 // Get job details
                 const jobResp = await response.json();

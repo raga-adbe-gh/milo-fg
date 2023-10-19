@@ -180,14 +180,14 @@ async function promoteFloodgatedFiles(doPublish, batchManager, appConfig) {
     let publishStatuses = [];
     if (ENABLE_HLX_PREVIEW) {
         const prevPaths = promoteStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
-        previewStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().PREVIEW, false);
+        previewStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().PREVIEW);
         stepMsg = 'Completed generating Preview for promoted files.';
         logger.info(stepMsg);
 
         if (doPublish) {
             stepMsg = 'Publishing promoted files.';
             logger.info(stepMsg);
-            publishStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().LIVE, false);
+            publishStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().LIVE);
             stepMsg = 'Completed Publishing for promoted files';
             logger.info(stepMsg);
         }

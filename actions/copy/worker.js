@@ -166,7 +166,7 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus, fgCol
     let previewStatuses = [];
     if (ENABLE_HLX_PREVIEW) {
         const paths = copyStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
-        previewStatuses = await helixUtils.bulkPreviewPublish(paths, helixUtils.getOperations().PREVIEW, true);
+        previewStatuses = await helixUtils.bulkPreviewPublish(paths, helixUtils.getOperations().PREVIEW, { isFloodgate: true, fgColor });
     }
     logger.info('Completed generating Preview for floodgated files.');
     const failedCopies = copyStatuses.filter((status) => !status.success)

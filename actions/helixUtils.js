@@ -50,7 +50,7 @@ class HelixUtils {
             return prevPubStatuses;
         }
         try {
-            const repo = isFloodgate ? `${urlInfo.getRepo()}-pink` : urlInfo.getRepo();
+            const repo = isFloodgate ? `${urlInfo.getRepo()}-${fgColor}` : urlInfo.getRepo();
             const bulkUrl = `https://admin.hlx.page/${operation}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
             const options = {
                 method: 'POST',

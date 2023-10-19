@@ -119,11 +119,7 @@ class HelixUtils {
                 const jobStatusJson = await response.json();
                 logger.info(`${operation} progress ${JSON.stringify(jobStatusJson.progress)}`);
                 jobStatusJson.data?.resources?.forEach((rs) => {
-                    if (operation === LIVE) {
-                        bulkPreviewStatus[rs.webPath] = { success: JOB_STATUS_CODES.includes(rs.status) };
-                    } else {
-                        bulkPreviewStatus[rs.path] = { success: JOB_STATUS_CODES.includes(rs.status) };
-                    }
+                    bulkPreviewStatus[rs.path] = { success: JOB_STATUS_CODES.includes(rs.status) };
                 });
                 if (jobStatusJson.state !== 'stopped' && !jobStatusJson.cancelled &&
                     retryAttempt <= appConfig.getConfig().maxBulkPreviewChecks) {

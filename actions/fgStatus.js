@@ -75,13 +75,13 @@ class FgStatus {
     }
 
     generateStoreKey(keySuffix) {
-        const { siteRootPath, siteFgRootPath } = appConfig.getConfig();
+        const { siteFgRootPath } = appConfig.getConfig();
         const { projectExcelPath } = appConfig.getPayload();
         let resp = '';
 
         switch (this.action) {
             case COPY_ACTION:
-                resp = `${siteRootPath || ''}${projectExcelPath || ''}`;
+                resp = `${siteFgRootPath || ''}${projectExcelPath || ''}`;
                 break;
             case DELETE_ACTION:
                 resp = `${DELETE_ACTION}${siteFgRootPath}`;

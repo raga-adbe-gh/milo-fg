@@ -48,7 +48,7 @@ async function main(args) {
         }
         fgAction.logStart();
 
-        fgStatus.clearState();
+        await fgStatus.clearState();
         respPayload = await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.STARTED,
             statusMessage: 'Triggering promote action',

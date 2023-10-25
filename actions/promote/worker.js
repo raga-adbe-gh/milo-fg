@@ -45,6 +45,7 @@ async function main(params) {
     };
     const ow = openwhisk();
     // Initialize action
+    logger.info(`Worker for ${PROMOTE_BATCH}_${batchNumber} started`);
     const fgAction = new FgAction(`${PROMOTE_BATCH}_${batchNumber}`, params);
     fgAction.init({ ow, skipUserDetails: true, fgStatusParams: { keySuffix: `Batch_${batchNumber}` } });
     const { fgStatus, appConfig } = fgAction.getActionParams();
@@ -59,7 +60,7 @@ async function main(params) {
             return vStat;
         }
 
-        fgStatus.clearState();
+        await fgStatus.clearState();
 
         urlInfo.setUrlInfo(payload.adminPageUri);
         respPayload = 'Getting all files to be promoted.';

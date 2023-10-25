@@ -87,6 +87,7 @@ application:
               LOG_LEVEL: debug
             limits:
               timeout: 600000
+              concurrency: 1
           promote-status:
             function: actions/promoteStatus/promoteStatus.js
             web: 'yes'

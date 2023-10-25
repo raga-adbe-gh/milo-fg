@@ -137,7 +137,8 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
                 keySuffix: `Batch_${batchNumber}`
             });
             batchState = await fgStatus.getStatusFromStateLib().then((result) => result?.action);
-            batchInProg = false || FgStatus.isInProgress(batchState?.status);
+            // Track and trigger called before the state is marked in progress with activation id
+            batchInProg = false || (!batchState?.status && !batchState?.actInProgress) || FgStatus.isInProgress(batchState?.status);
             if (batchInProg) batchInProg = await actInProgress(ow, activationId, batchInProg);
             if (!batchInProg) {
                 actDtls[counter].done = true;

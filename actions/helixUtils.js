@@ -45,7 +45,7 @@ class HelixUtils {
         return helixAdminApiKeys && helixAdminApiKeys[repo];
     }
 
-    canBulkPreviewPublish(isFloodgate = false, fgColor = 'pink') {
+    isAdminApiKeyAvailable(isFloodgate = false, fgColor = 'pink') {
         return !!this.getAdminApiKeys(isFloodgate, fgColor);
     }
 

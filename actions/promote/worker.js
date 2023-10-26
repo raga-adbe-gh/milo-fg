@@ -178,7 +178,7 @@ async function promoteFloodgatedFiles(doPublish, batchManager, appConfig) {
     logger.info('Previewing promoted files.');
     let previewStatuses = [];
     let publishStatuses = [];
-    if (helixUtils.canBulkPreviewPublish()) {
+    if (helixUtils.isAdminApiKeyAvailable()) {
         const prevPaths = promoteStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
         previewStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().PREVIEW);
         stepMsg = 'Completed generating Preview for promoted files.';

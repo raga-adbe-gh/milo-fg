@@ -163,7 +163,7 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus, fgCol
 
     logger.info('Previewing floodgated files... ');
     let previewStatuses = [];
-    if (helixUtils.canBulkPreviewPublish(true, fgColor)) {
+    if (helixUtils.isAdminApiKeyAvailable(true, fgColor)) {
         const paths = copyStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
         previewStatuses = await helixUtils.bulkPreviewPublish(paths, helixUtils.getOperations().PREVIEW, { isFloodgate: true, fgColor });
     }

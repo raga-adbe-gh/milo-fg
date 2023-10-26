@@ -30,7 +30,6 @@ const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
 
 const DELAY_TIME_PROMOTE = 3000;
-const ENABLE_HLX_PREVIEW = false;
 
 async function main(params) {
     const logger = getAioLogger();
@@ -179,7 +178,7 @@ async function promoteFloodgatedFiles(doPublish, batchManager, appConfig) {
     logger.info('Previewing promoted files.');
     let previewStatuses = [];
     let publishStatuses = [];
-    if (ENABLE_HLX_PREVIEW) {
+    if (helixUtils.canBulkPreviewPublish()) {
         const prevPaths = promoteStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
         previewStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().PREVIEW);
         stepMsg = 'Completed generating Preview for promoted files.';

@@ -35,6 +35,20 @@ class HelixUtils {
         return { PREVIEW, LIVE };
     }
 
+    getRepo(isFloodgate = false, fgColor = 'pink') {
+        return isFloodgate ? `${urlInfo.getRepo()}-${fgColor}` : urlInfo.getRepo();
+    }
+
+    getAdminApiKeys(isFloodgate = false, fgColor = 'pink') {
+        const repo = this.getRepo(isFloodgate, fgColor);
+        const { helixAdminApiKeys } = appConfig.getConfig();
+        return helixAdminApiKeys && helixAdminApiKeys[repo];
+    }
+
+    canBulkPreviewPublish(isFloodgate = false, fgColor = 'pink') {
+        return !!this.getAdminApiKeys(isFloodgate, fgColor);
+    }
+
     /**
      * Trigger a preview/publish of the files using the franklin bulk api. Franklin bulk api returns a job id/name which is used to 
      * check back the completion of the preview/publish.
@@ -50,7 +64,7 @@ class HelixUtils {
             return prevPubStatuses;
         }
         try {
-            const repo = isFloodgate ? `${urlInfo.getRepo()}-${fgColor}` : urlInfo.getRepo();
+            const repo = this.getRepo(isFloodgate, fgColor);
             const bulkUrl = `https://admin.hlx.page/${operation}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
             const options = {
                 method: 'POST',
@@ -58,10 +72,11 @@ class HelixUtils {
                 headers: new fetch.Headers([['Accept', 'application/json'], ['Content-Type', 'application/json']])
             };
 
-            const { helixAdminApiKeys } = appConfig.getConfig();
-            if (helixAdminApiKeys && helixAdminApiKeys[repo]) {
-                options.headers.append('Authorization', `token ${helixAdminApiKeys[repo]}`);
+            const helixAdminApiKey = this.getAdminApiKeys(isFloodgate, fgColor);
+            if (helixAdminApiKey) {
+                options.headers.append('Authorization', `token ${helixAdminApiKey}`);
             }
+
             const response = await fetch(bulkUrl, options);
             logger.info(`${operation} call response ${response.status} for ${bulkUrl}`);
             if (!response.ok && !AUTH_ERRORS.includes(response.status) && retryAttempt <= MAX_RETRIES) {

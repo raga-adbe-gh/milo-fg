@@ -31,7 +31,6 @@ const sharepointAuth = require('../sharepointAuth');
 
 const BATCH_REQUEST_COPY = 20;
 const DELAY_TIME_COPY = 3000;
-const ENABLE_HLX_PREVIEW = false;
 
 async function main(params) {
     logMemUsage();
@@ -164,7 +163,7 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus, fgCol
 
     logger.info('Previewing floodgated files... ');
     let previewStatuses = [];
-    if (ENABLE_HLX_PREVIEW) {
+    if (helixUtils.canBulkPreviewPublish(true, fgColor)) {
         const paths = copyStatuses.filter((ps) => ps.success).map((ps) => handleExtension(ps.srcPath));
         previewStatuses = await helixUtils.bulkPreviewPublish(paths, helixUtils.getOperations().PREVIEW, { isFloodgate: true, fgColor });
     }

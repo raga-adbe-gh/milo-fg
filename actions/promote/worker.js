@@ -30,7 +30,7 @@ const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
 
 const DELAY_TIME_PROMOTE = 3000;
-const ENABLE_HLX_PREVIEW = true;
+const ENABLE_HLX_PREVIEW = false;
 
 async function main(params) {
     const logger = getAioLogger();

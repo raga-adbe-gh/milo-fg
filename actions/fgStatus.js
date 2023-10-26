@@ -210,7 +210,7 @@ class FgStatus {
      */
     async updateStateStatus() {
         const hash = this.getHash();
-        this.logger.info(`Adding status to aio state lib with hash -- ${hash} - ${JSON.stringify(this.storeStatus)}`);
+        getAioLogger().info(`Adding status to aio state lib with hash ${this.storeKey} -- ${hash} - ${JSON.stringify(this.storeStatus)}`);
         // get the hash value if its available
         try {
             const state = await stateLib.init();

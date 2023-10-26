@@ -39,14 +39,14 @@ class HelixUtils {
         return isFloodgate ? `${urlInfo.getRepo()}-${fgColor}` : urlInfo.getRepo();
     }
 
-    getAdminApiKeys(isFloodgate = false, fgColor = 'pink') {
+    getAdminApiKey(isFloodgate = false, fgColor = 'pink') {
         const repo = this.getRepo(isFloodgate, fgColor);
-        const { helixAdminApiKeys } = appConfig.getConfig();
-        return helixAdminApiKeys && helixAdminApiKeys[repo];
+        const { helixAdminApiKeys = {} } = appConfig.getConfig();
+        return helixAdminApiKeys[repo];
     }
 
-    isAdminApiKeyAvailable(isFloodgate = false, fgColor = 'pink') {
-        return !!this.getAdminApiKeys(isFloodgate, fgColor);
+    canBulkPreviewPublish(isFloodgate = false, fgColor = 'pink') {
+        return !!this.getAdminApiKey(isFloodgate, fgColor);
     }
 
     /**
@@ -72,7 +72,7 @@ class HelixUtils {
                 headers: new fetch.Headers([['Accept', 'application/json'], ['Content-Type', 'application/json']])
             };
 
-            const helixAdminApiKey = this.getAdminApiKeys(isFloodgate, fgColor);
+            const helixAdminApiKey = this.getAdminApiKey(isFloodgate, fgColor);
             if (helixAdminApiKey) {
                 options.headers.append('Authorization', `token ${helixAdminApiKey}`);
             }

@@ -24,10 +24,10 @@ const {
     getAioLogger, handleExtension, delay, logMemUsage, COPY_ACTION
 } = require('../utils');
 const helixUtils = require('../helixUtils');
-const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
 const FgAction = require('../FgAction');
 const sharepointAuth = require('../sharepointAuth');
+const appConfig = require('../appConfig');
 
 const BATCH_REQUEST_COPY = 20;
 const DELAY_TIME_COPY = 3000;
@@ -44,16 +44,15 @@ async function main(params) {
     // Initialize action
     const fgAction = new FgAction(COPY_ACTION, params);
     fgAction.init({ ow, skipUserDetails: true });
-    const { fgStatus, appConfig } = fgAction.getActionParams();
-    const { adminPageUri, projectExcelPath, fgColor } = appConfig.getPayload();
+    const { fgStatus } = fgAction.getActionParams();
+    const { projectExcelPath, fgColor } = appConfig.getPayload();
     try {
         // Validations
         const vStat = await fgAction.validateAction(valParams);
         if (vStat && vStat.code !== 200) {
-            return vStat;
+            return exitAction(vStat);
         }
 
-        urlInfo.setUrlInfo(adminPageUri);
         respPayload = 'Getting all files to be floodgated from the project excel file';
         logger.info(respPayload);
         fgStatus.updateStatusToStateLib({
@@ -88,9 +87,9 @@ async function main(params) {
         respPayload = err;
     }
     logMemUsage();
-    return {
+    return exitAction({
         body: respPayload,
-    };
+    });
 }
 
 async function floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor) {
@@ -187,6 +186,11 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus, fgCol
     logger.info('Project excel file updated with copy status.');
 
     return payload;
+}
+
+function exitAction(resp) {
+    appConfig.removePayload();
+    return resp;
 }
 
 exports.main = main;

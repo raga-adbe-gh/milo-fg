@@ -18,7 +18,7 @@
 class UrlInfo {
     urlInfoMap = {};
 
-    setUrlInfo(adminPageUri) {
+    constructor(adminPageUri) {
         const location = new URL(adminPageUri);
         function getParam(name) {
             return location.searchParams.get(name);
@@ -66,4 +66,4 @@ class UrlInfo {
     }
 }
 
-module.exports = new UrlInfo();
+module.exports = UrlInfo;

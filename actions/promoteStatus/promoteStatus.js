@@ -75,11 +75,11 @@ async function main(args) {
         // Validations
         const fgUser = new FgUser({ at: args.spToken });
         if (!args.fgShareUrl) {
-            return errorResponse(BAD_REQUEST_SC, 'Mising required fgShareUrl parameter');
+            return exitAction(errorResponse(BAD_REQUEST_SC, 'Mising required fgShareUrl parameter'));
         }
 
         if (!await fgUser.isUser()) {
-            return errorResponse(AUTH_FAILED_SC, 'Authentication failed. Please refresh page and try again.');
+            return exitAction(errorResponse(AUTH_FAILED_SC, 'Authentication failed. Please refresh page and try again.'));
         }
 
         // Starts
@@ -113,12 +113,17 @@ async function main(args) {
         }
     } catch (err) {
         logger.error(err);
-        return errorResponse(GEN_ERROR_SC, `Something went wrong: ${err}`);
+        return exitAction(errorResponse(GEN_ERROR_SC, `Something went wrong: ${err}`));
     }
 
-    return {
+    return exitAction({
         payload,
-    };
+    });
+}
+
+function exitAction(resp) {
+    appConfig.removePayload();
+    return resp;
 }
 
 exports.main = main;

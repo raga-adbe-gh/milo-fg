@@ -17,25 +17,39 @@
 
 const crypto = require('crypto');
 const { getAioLogger } = require('./utils');
+const UrlInfo = require('./urlInfo');
 
+// Max activation is 1hrs, set to 2hrs
+const MAX_ACTIVATION_TIME = 2 * 60 * 60 * 1000;
+const ENV_VAR_ACTIVATION_ID = '__OW_ACTIVATION_ID';
+
+/**
+ * This store the Floodate configs.
+ * Common Configs - Parameters like Batch
+ */
 class AppConfig {
+    // set payload per activation
     configMap = { payload: {} };
 
     setAppConfig(params) {
-        // These are payload parameters
-        this.configMap.payload.spToken = params.spToken;
-        this.configMap.payload.adminPageUri = params.adminPageUri;
-        this.configMap.payload.projectExcelPath = params.projectExcelPath;
-        this.configMap.payload.shareUrl = params.shareUrl;
-        this.configMap.payload.fgShareUrl = params.fgShareUrl;
-        this.configMap.payload.rootFolder = params.rootFolder;
-        this.configMap.payload.fgRootFolder = params.fgRootFolder;
-        this.configMap.payload.promoteIgnorePaths = params.promoteIgnorePaths || [];
-        this.configMap.payload.doPublish = params.doPublish;
-        this.configMap.payload.driveId = params.driveId;
-        this.configMap.payload.fgColor = params.fgColor || 'pink';
+        const payload = this.initPayload();
+        // Called during action start to cleanup old entries
+        this.removeOldPayload();
 
-        // These are from configs
+        // These are payload parameters
+        payload.spToken = params.spToken;
+        payload.adminPageUri = params.adminPageUri;
+        payload.projectExcelPath = params.projectExcelPath;
+        payload.shareUrl = params.shareUrl;
+        payload.fgShareUrl = params.fgShareUrl;
+        payload.rootFolder = params.rootFolder;
+        payload.fgRootFolder = params.fgRootFolder;
+        payload.promoteIgnorePaths = params.promoteIgnorePaths || [];
+        payload.doPublish = params.doPublish;
+        payload.driveId = params.driveId;
+        payload.fgColor = params.fgColor || 'pink';
+
+        // These are from configs and not activation related
         this.configMap.fgSite = params.fgSite;
         this.configMap.fgClientId = params.fgClientId;
         this.configMap.fgAuthority = params.fgAuthority;
@@ -53,20 +67,55 @@ class AppConfig {
         this.configMap.fgAdminGroups = this.getJsonFromStr(params.fgAdminGroups, []);
         this.configMap.fgDirPattern = params.fgDirPattern;
         this.configMap.siteRootPathRex = this.siteRootPathRex || '.*/sites(/.*)<';
-        this.configMap.siteRootPath = this.getSiteRootPath(params.shareUrl);
-        this.configMap.siteFgRootPath = this.getSiteRootPath(params.fgShareUrl);
         this.configMap.helixAdminApiKeys = this.getJsonFromStr(params.helixAdminApiKeys);
         this.configMap.bulkPreviewCheckInterval = parseInt(params.bulkPreviewCheckInterval || '30', 10);
         this.configMap.maxBulkPreviewChecks = parseInt(params.maxBulkPreviewChecks || '30', 10);
         this.extractPrivateKey();
+
+        payload.ext = {
+            siteRootPath: this.extractSiteRootPath(params.shareUrl),
+            siteFgRootPath: this.extractSiteRootPath(params.fgShareUrl),
+            urlInfo: payload.adminPageUri ? new UrlInfo(payload.adminPageUri) : null
+        };
     }
 
-    getConfig() {
-        return this.configMap;
+    // Activation Payload Related
+    initPayload() {
+        this.configMap.payload[this.getPayloadKey()] = {
+            payloadAccessedOn: new Date().getTime()
+        };
+        return this.configMap.payload[this.getPayloadKey()];
+    }
+
+    getPayloadKey() {
+        return process.env[ENV_VAR_ACTIVATION_ID];
     }
 
     getPayload() {
-        return this.configMap.payload;
+        this.configMap.payload[this.getPayloadKey()].payloadAccessedOn = new Date().getTime();
+        return this.configMap.payload[this.getPayloadKey()];
+    }
+
+    removePayload() {
+        delete this.configMap.payload[this.getPayloadKey()];
+    }
+
+    /**
+     * Similar to LRU
+     */
+    removeOldPayload() {
+        const { payload } = this.configMap;
+        const payloadKeys = Object.keys(payload);
+        const leastTime = new Date().getTime();
+        payloadKeys
+            .filter((key) => payload[key]?.payloadAccessedOn < leastTime - MAX_ACTIVATION_TIME)
+            .forEach((key) => delete payload[key]);
+    }
+
+    // Configs related methods
+    getConfig() {
+        const { payload, ...configMap } = this.configMap;
+        return { ...configMap, payload: this.getPayload() };
     }
 
     getJsonFromStr(str, def = {}) {
@@ -85,7 +134,12 @@ class AppConfig {
      * @returns key-value
      */
     getPassthruParams() {
-        const { spToken, ...payloadParams } = this.configMap.payload;
+        const {
+            spToken,
+            ext,
+            payloadAccessedOn,
+            ...payloadParams
+        } = this.getPayload();
         return payloadParams;
     }
 
@@ -103,7 +157,7 @@ class AppConfig {
     }
 
     getPromoteIgnorePaths() {
-        return this.configMap.payload.promoteIgnorePaths;
+        return this.getPayload().promoteIgnorePaths;
     }
 
     extractPrivateKey() {
@@ -139,12 +193,20 @@ class AppConfig {
         return this.configMap.numBulkReq;
     }
 
-    getSiteRootPath(shareUrl) {
+    extractSiteRootPath(shareUrl) {
         try {
             return shareUrl.match(new RegExp(this.configMap.siteRootPathRex))[1];
         } catch (err) {
             return '/';
         }
+    }
+
+    getSiteFgRootPath() {
+        return this.getPayload().ext.siteFgRootPath;
+    }
+
+    getUrlInfo() {
+        return this.getPayload().ext.urlInfo;
     }
 }
 

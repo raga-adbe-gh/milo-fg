@@ -22,7 +22,6 @@ const {
     getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress
 } = require('../utils');
 const appConfig = require('../appConfig');
-const urlInfo = require('../urlInfo');
 const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
 const FgAction = require('../FgAction');
@@ -47,7 +46,7 @@ async function main(params) {
     // Read instance_info.json
     const instanceContent = await batchManager.getInstanceData();
     if (!instanceContent || !instanceContent.dtls) {
-        return { body: 'None to run!' };
+        return exitAction({ body: 'None to run!' });
     }
 
     const { batchesInfo } = instanceContent.dtls;
@@ -61,10 +60,9 @@ async function main(params) {
     try {
         const vStat = await fgAction.validateAction(valParams);
         if (vStat && vStat.code !== 200) {
-            return vStat;
+            return exitAction(vStat);
         }
 
-        urlInfo.setUrlInfo(payload.adminPageUri);
         respPayload = 'Getting status of all reference activation.';
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
@@ -111,9 +109,9 @@ async function main(params) {
             logger.info('Error while updatnig failed status');
         }
     }
-    return {
+    return exitAction({
         body: respPayload,
-    };
+    });
 }
 
 /**
@@ -239,4 +237,8 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
     logger.info('Marked complete in batch manager.');
 }
 
+function exitAction(resp) {
+    appConfig.removePayload();
+    return resp;
+}
 exports.main = main;

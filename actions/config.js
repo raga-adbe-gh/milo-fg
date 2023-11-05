@@ -16,7 +16,6 @@
 ************************************************************************* */
 
 const appConfig = require('./appConfig');
-const urlInfo = require('./urlInfo');
 
 const GRAPH_API = 'https://graph.microsoft.com/v1.0';
 
@@ -104,7 +103,7 @@ function getHelixAdminConfig() {
 }
 
 async function getConfig() {
-    if (urlInfo.isValid()) {
+    if (appConfig.getUrlInfo().isValid()) {
         const applicationConfig = appConfig.getConfig();
         return {
             sp: getSharepointConfig(applicationConfig),

@@ -22,7 +22,10 @@ const appConfig = require('./appConfig');
 /**
  * Creates a new SharePoint object, that has two methods:
  * - getAccessToken
- * Internally the function reads and parses the '.env' file and prepares the auth config to invoke the MSAL client for SharePoint authenticating.
+ * Internally the function reads and parses the '.env' file and prepares the auth config
+ * to invoke the MSAL client for SharePoint authenticating.
+ *
+ * This is global and does not depend on payload but general SharePoint configs.
  *
  * @returns {object} Sharepoint object
  */

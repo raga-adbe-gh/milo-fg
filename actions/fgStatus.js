@@ -75,7 +75,7 @@ class FgStatus {
     }
 
     generateStoreKey(keySuffix) {
-        const { siteFgRootPath } = appConfig.getConfig();
+        const siteFgRootPath = appConfig.getSiteFgRootPath();
         const { projectExcelPath } = appConfig.getPayload();
         let resp = '';
 

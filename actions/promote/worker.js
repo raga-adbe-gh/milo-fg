@@ -24,10 +24,10 @@ const {
     getAioLogger, handleExtension, delay, logMemUsage, getInstanceKey, PROMOTE_ACTION, PROMOTE_BATCH
 } = require('../utils');
 const helixUtils = require('../helixUtils');
-const urlInfo = require('../urlInfo');
 const FgAction = require('../FgAction');
 const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
+const appConfig = require('../appConfig');
 
 const DELAY_TIME_PROMOTE = 3000;
 
@@ -47,28 +47,28 @@ async function main(params) {
     logger.info(`Worker for ${PROMOTE_BATCH}_${batchNumber} started`);
     const fgAction = new FgAction(`${PROMOTE_BATCH}_${batchNumber}`, params);
     fgAction.init({ ow, skipUserDetails: true, fgStatusParams: { keySuffix: `Batch_${batchNumber}` } });
-    const { fgStatus, appConfig } = fgAction.getActionParams();
-    const { payload, siteFgRootPath } = appConfig.getConfig();
+    const { fgStatus } = fgAction.getActionParams();
+    const payload = appConfig.getPayload();
+    const fgRootFolder = appConfig.getSiteFgRootPath();
 
     let respPayload;
-    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }) });
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder }) });
     await batchManager.init({ batchNumber });
     try {
         const vStat = await fgAction.validateAction(valParams);
         if (vStat && vStat.code !== 200) {
-            return vStat;
+            return exitAction(vStat);
         }
 
         await fgStatus.clearState();
 
-        urlInfo.setUrlInfo(payload.adminPageUri);
         respPayload = 'Getting all files to be promoted.';
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.STARTED,
             statusMessage: respPayload
         });
         logger.info(respPayload);
-        respPayload = await promoteFloodgatedFiles(payload.doPublish, batchManager, appConfig);
+        respPayload = await promoteFloodgatedFiles(payload.doPublish, batchManager);
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED,
             statusMessage: respPayload
@@ -82,9 +82,9 @@ async function main(params) {
         respPayload = err;
     }
 
-    return {
+    return exitAction({
         body: respPayload,
-    };
+    });
 }
 
 /**
@@ -118,7 +118,7 @@ async function promoteCopy(srcPath, destinationFolder) {
     return copySuccess;
 }
 
-async function promoteFloodgatedFiles(doPublish, batchManager, appConfig) {
+async function promoteFloodgatedFiles(doPublish, batchManager) {
     const logger = getAioLogger();
 
     async function promoteFile(batchItem) {
@@ -214,6 +214,11 @@ async function promoteFloodgatedFiles(doPublish, batchManager, appConfig) {
     logMemUsage();
     stepMsg = `All tasks for floodgate promote of ${currBatchLbl} is completed`;
     return stepMsg;
+}
+
+function exitAction(resp) {
+    appConfig.removePayload();
+    return resp;
 }
 
 exports.main = main;

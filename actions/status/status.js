@@ -49,9 +49,14 @@ async function main(args) {
         payload = err;
     }
 
-    return {
+    return exitAction({
         payload,
-    };
+    });
+}
+
+function exitAction(resp) {
+    appConfig.removePayload();
+    return resp;
 }
 
 exports.main = main;

@@ -17,7 +17,6 @@
 
 const fetch = require('node-fetch');
 const appConfig = require('./appConfig');
-const urlInfo = require('./urlInfo');
 const { getAioLogger, delay } = require('./utils');
 
 const MAX_RETRIES = 5;
@@ -36,6 +35,7 @@ class HelixUtils {
     }
 
     getRepo(isFloodgate = false, fgColor = 'pink') {
+        const urlInfo = appConfig.getUrlInfo();
         return isFloodgate ? `${urlInfo.getRepo()}-${fgColor}` : urlInfo.getRepo();
     }
 
@@ -50,7 +50,7 @@ class HelixUtils {
     }
 
     /**
-     * Trigger a preview/publish of the files using the franklin bulk api. Franklin bulk api returns a job id/name which is used to 
+     * Trigger a preview/publish of the files using the franklin bulk api. Franklin bulk api returns a job id/name which is used to
      * check back the completion of the preview/publish.
      * @param {*} paths Paths of the files that needs to be previewed.
      * @param {*} operation Preivew or Publish
@@ -65,6 +65,7 @@ class HelixUtils {
         }
         try {
             const repo = this.getRepo(isFloodgate, fgColor);
+            const urlInfo = appConfig.getUrlInfo();
             const bulkUrl = `https://admin.hlx.page/${operation}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
             const options = {
                 method: 'POST',
@@ -124,6 +125,7 @@ class HelixUtils {
                 options.headers.append('Authorization', `token ${helixAdminApiKeys[repo]}`);
             }
             const bulkOperation = operation === LIVE ? PUBLISH : operation;
+            const urlInfo = appConfig.getUrlInfo();
             const statusUrl = `https://admin.hlx.page/job/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/${bulkOperation}/${jobName}/details`;
             const response = await fetch(statusUrl, options);
             logger.info(`Status call response ${response.ok} with status ${response.status} `);

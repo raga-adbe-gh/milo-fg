@@ -22,10 +22,10 @@ const {
 const {
     getAioLogger, logMemUsage, getInstanceKey, PROMOTE_ACTION
 } = require('../utils');
-const urlInfo = require('../urlInfo');
 const FgAction = require('../FgAction');
 const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
+const appConfig = require('../appConfig');
 
 const logger = getAioLogger();
 const MAX_CHILDREN = 5000;
@@ -60,8 +60,8 @@ async function main(params) {
     // Initialize action
     const fgAction = new FgAction(PROMOTE_ACTION, params);
     fgAction.init({ ow, skipUserDetails: true });
-    const { fgStatus, appConfig } = fgAction.getActionParams();
-    const { payload, siteFgRootPath } = appConfig.getConfig();
+    const { fgStatus } = fgAction.getActionParams();
+    const siteFgRootPath = appConfig.getSiteFgRootPath();
     const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }) });
     await batchManager.init();
     // For current cleanup files before starting
@@ -69,10 +69,9 @@ async function main(params) {
     try {
         const vStat = await fgAction.validateAction(valParams);
         if (vStat && vStat.code !== 200) {
-            return vStat;
+            return exitAction(vStat);
         }
 
-        urlInfo.setUrlInfo(payload.adminPageUri);
         respPayload = 'Getting all files to be promoted.';
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
@@ -101,18 +100,18 @@ async function main(params) {
         respPayload = err;
     }
 
-    return {
+    return exitAction({
         body: respPayload,
-    };
+    });
 }
 
 /**
  * Find all files in the FG tree to promote. Add to batches.
  */
-async function createBatch(batchManager, appConfig) {
+async function createBatch(batchManager, appConf) {
     const { sp } = await getConfig();
     const options = await getAuthorizedRequestOption({ method: 'GET' });
-    const promoteIgnoreList = appConfig.getPromoteIgnorePaths();
+    const promoteIgnoreList = appConf.getPromoteIgnorePaths();
     logger.info(`Promote ignore list: ${promoteIgnoreList}`);
 
     // Temporarily restricting the iteration for promote to under /drafts folder only
@@ -162,6 +161,11 @@ async function findAndBatchFGFiles(
             }
         }
     }
+}
+
+function exitAction(resp) {
+    appConfig.removePayload();
+    return resp;
 }
 
 exports.main = main;

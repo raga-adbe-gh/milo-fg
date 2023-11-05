@@ -55,9 +55,9 @@ async function main(args) {
         if (!(payload.permissions.isAdmin || payload.permissions.isUser)) {
             payload.error = 'Could not determine the user.';
             logger.error(payload);
-            return {
+            return exitAction({
                 payload,
-            };
+            });
         }
         const userDetails = sharepointAuth.getUserDetails(args.spToken);
 
@@ -73,9 +73,9 @@ async function main(args) {
         payload.error = err;
     }
 
-    return {
+    return exitAction({
         payload,
-    };
+    });
 }
 
 class MaintAction {
@@ -148,6 +148,11 @@ class MaintAction {
         }
         return 'No Action';
     }
+}
+
+function exitAction(resp) {
+    appConfig.removePayload();
+    return resp;
 }
 
 exports.main = main;

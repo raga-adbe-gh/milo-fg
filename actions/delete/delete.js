@@ -22,6 +22,7 @@ const {
 } = require('../utils');
 const FgStatus = require('../fgStatus');
 const FgAction = require('../FgAction');
+const appConfig = require('../appConfig');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
@@ -43,7 +44,7 @@ async function main(args) {
         // Validations
         const vStat = await fgAction.validateAction(valParams);
         if (vStat && vStat.code !== 200) {
-            return vStat;
+            return exitAction(vStat);
         }
         fgAction.logStart();
 
@@ -51,7 +52,7 @@ async function main(args) {
             status: FgStatus.PROJECT_STATUS.STARTED,
             statusMessage: 'Triggering delete action'
         });
-        return ow.actions.invoke({
+        return exitAction(ow.actions.invoke({
             name: 'milo-fg/delete-worker',
             blocking: false, // this is the flag that instructs to execute the worker asynchronous
             result: false,
@@ -77,7 +78,7 @@ async function main(args) {
                 code: 500,
                 payload: respPayload
             };
-        });
+        }));
     } catch (err) {
         respPayload = fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.FAILED,
@@ -86,10 +87,15 @@ async function main(args) {
         logger.error(err);
     }
 
-    return {
+    return exitAction({
         code: 500,
         payload: respPayload,
-    };
+    });
+}
+
+function exitAction(resp) {
+    appConfig.removePayload();
+    return resp;
 }
 
 exports.main = main;

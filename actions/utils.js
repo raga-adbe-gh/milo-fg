@@ -33,6 +33,9 @@ function handleExtension(path) {
     if (path.endsWith('.xlsx')) {
         return path.replace('.xlsx', '.json');
     }
+    if (path.endsWith('/index.docx')) {
+        return path.substring(0, path.lastIndexOf('/index.docx') + 1);
+    }
     if (path.endsWith('.docx')) {
         return path.substring(0, path.lastIndexOf('.'));
     }

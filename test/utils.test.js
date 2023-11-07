@@ -31,4 +31,7 @@ describe('handleExtension', () => {
     test('svg path', () => {
         expect(utils.handleExtension('/path/to/file.svg')).toEqual('/path/to/file.svg');
     });
+    test('docx path', () => {
+        expect(utils.handleExtension('/path/to/index.docx')).toEqual('/path/to/');
+    });
 });

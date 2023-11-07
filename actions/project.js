@@ -29,7 +29,17 @@ async function getProjectDetails(projectExcelPath) {
     const urlsData = await getExcelTable(projectExcelPath, PROJECT_URL_TBL);
     const urls = new Map();
     const filePaths = new Map();
-    urlsData.forEach((cols) => {
+    // UrlsData Sample [[['/one']],[['/two']],[['/two"]],[['/three']]]
+    const uniqueRows = urlsData
+        .filter((cols) => cols?.length && cols[0])
+        .reduce((accumulator, currentValue) => {
+            const existingItem = accumulator.find((cols) => cols[0][0] === currentValue[0][0]);
+            if (!existingItem) {
+                accumulator.push(currentValue);
+            }
+            return accumulator;
+        }, []);
+    uniqueRows.forEach((cols) => {
         const url = cols?.length && cols[0];
         const docPath = getDocPathFromUrl(url);
         urls.set(url, { doc: { filePath: docPath, url } });

@@ -70,13 +70,15 @@ async function main(params) {
         });
 
         // Check to see all batches are complete
-        const batchCheckResp = await checkBatchesInProg(payload.fgRootFolder, batchesInfo, ow);
-        const { anyInProg, allDone } = batchCheckResp;
+        const { anyInProg, allCopyDone } = await checkBatchesInProg(payload.fgRootFolder, batchesInfo, ow);
         await batchManager.writeToInstanceFile(instanceContent);
 
         // Collect status and mark as complete
-        if (allDone) {
-            await completePromote(payload.projectExcelPath, batchesInfo, batchManager, fgStatus);
+        if (allCopyDone) {
+            const allDone = await checkPostPromoteStatus(payload.fgRootFolder, batchesInfo);
+            if (allDone) {
+                await completePromote(payload.projectExcelPath, batchesInfo, batchManager, fgStatus);
+            }
             await batchManager.writeToInstanceFile(instanceContent);
         } else if (!anyInProg) {
             // Trigger next activation
@@ -125,11 +127,54 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
     let fgStatus;
     let batchState;
     let batchInProg = false;
+    let allCopyDone = true;
+    let counter = 0;
+    for (; counter < actDtls?.length && !batchInProg; counter += 1) {
+        const {
+            batchNumber,
+            activationId,
+            copyDone
+        } = actDtls[counter];
+        if (activationId && !copyDone) {
+            fgStatus = new FgStatus({
+                action: `${PROMOTE_BATCH}_${batchNumber}`,
+                keySuffix: `Batch_${batchNumber}`
+            });
+            batchState = await fgStatus.getStatusFromStateLib().then((result) => result?.action);
+            // Track and trigger called before the state is marked in progress with activation id
+            batchInProg = false || (!batchState?.status && !batchState?.actInProgress) || FgStatus.isInProgress(batchState?.details?.[FgStatus.PROJECT_STAGE.PROMOTE_COPY_STATUS]);
+            if (batchInProg) batchInProg = await actInProgress(ow, activationId, batchInProg);
+            if (!batchInProg) {
+                actDtls[counter].copyDone = true;
+                actDtls[counter].startTime = batchState?.startTime;
+                actDtls[counter].status = batchState?.status;
+            } else if (batchState) {
+                actDtls[counter].startTime = batchState.startTime;
+                actDtls[counter].status = batchState.status;
+            }
+            allCopyDone &&= !batchInProg;
+        } else {
+            allCopyDone &&= copyDone;
+        }
+    }
+
+    return { anyInProg: batchInProg, allCopyDone };
+}
+
+async function checkPostPromoteStatus(fgRootFolder, actDtls) {
+    let fgStatus;
+    let batchState;
+    let batchInProg = false;
     let allDone = true;
     let counter = 0;
     for (; counter < actDtls?.length && !batchInProg; counter += 1) {
-        const { batchNumber, activationId, done } = actDtls[counter];
-        if (activationId && !done) {
+        const {
+            batchNumber,
+            activationId,
+            copyDone,
+            done
+        } = actDtls[counter];
+        if (activationId && copyDone && !done) {
             fgStatus = new FgStatus({
                 action: `${PROMOTE_BATCH}_${batchNumber}`,
                 keySuffix: `Batch_${batchNumber}`
@@ -137,23 +182,18 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
             batchState = await fgStatus.getStatusFromStateLib().then((result) => result?.action);
             // Track and trigger called before the state is marked in progress with activation id
             batchInProg = false || (!batchState?.status && !batchState?.actInProgress) || FgStatus.isInProgress(batchState?.status);
-            if (batchInProg) batchInProg = await actInProgress(ow, activationId, batchInProg);
             if (!batchInProg) {
                 actDtls[counter].done = true;
                 actDtls[counter].startTime = batchState?.startTime;
                 actDtls[counter].endTime = batchState?.endTime;
                 actDtls[counter].status = batchState?.status;
-            } else if (batchState) {
-                actDtls[counter].startTime = batchState.startTime;
-                actDtls[counter].status = batchState.status;
             }
             allDone &&= !batchInProg;
         } else {
             allDone &&= done;
         }
     }
-
-    return { anyInProg: batchInProg, allDone };
+    return allDone;
 }
 
 async function triggerPromoteWorkerAction(ow, params, fgStatus) {

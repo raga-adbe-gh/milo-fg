@@ -206,7 +206,10 @@ async function triggerPromoteWorkerAction(ow, params, fgStatus) {
         // attaching activation id to the status
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
-            activationId: result.activationId
+            activationId: result.activationId,
+            details: {
+                [FgStatus.PROJECT_STAGE.PROMOTE_COPY_STATUS]: FgStatus.PROJECT_STATUS.STARTED
+            }
         });
         return {
             batchNumber: params.batchNumber,

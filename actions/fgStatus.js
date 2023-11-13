@@ -153,16 +153,15 @@ class FgStatus {
                     if (endTime) {
                         this.storeStatus.action.endTime = endTime;
                     }
-                    if (details) {
-                        this.storeStatus.action.details = details;
-                    }
                 } else {
                     this.storeStatus.action.status = status;
                     this.storeStatus.action.message = statusMessage;
                     this.storeStatus.action.activationId = activationId;
                     this.storeStatus.action.startTime = startTime || this.storeStatus.action.startTime;
                     this.storeStatus.action.endTime = endTime || this.storeStatus.action.endTime;
-                    this.storeStatus.action.details = details || this.storeStatus.action.details;
+                }
+                if (details) {
+                    this.storeStatus.action.details = { ...this.storeStatus.action.details, ...details };
                 }
                 this.storeStatus.action.batches = batches || this.storeStatus.action.batches;
                 this.storeStatus.action.type = action || this.action || this.storeStatus.action.type;

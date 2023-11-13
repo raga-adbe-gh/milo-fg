@@ -89,7 +89,8 @@ async function previewPublish(doPublish, batchManager) {
     const currBatchLbl = `Batch-${currentBatch.getBatchNumber()}`;
     const allFloodgatedFiles = await currentBatch.getFiles();
     const promotedFiles = allFloodgatedFiles.map((e) => e.file.filePath);
-    const failedPromotes = await currentBatch.getResultsContent()?.failedPromotes || [];
+    const resultsContent = await currentBatch.getResultsContent() || [];
+    const failedPromotes = resultsContent.failedPromotes || [];
     const prevPaths = promotedFiles.filter((item) => !failedPromotes.includes(item)).map((e) => handleExtension(e));
     logger.info(`Post promote files for ${currBatchLbl} are ${prevPaths?.length}`);
 

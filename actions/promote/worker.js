@@ -82,6 +82,8 @@ async function main(params) {
                 [FgStatus.PROJECT_STAGE.PROMOTE_COPY_STATUS]: FgStatus.PROJECT_STATUS.COMPLETED
             }
         });
+        // A small delay before trigger
+        await delay(DELAY_TIME_PROMOTE);
         await triggerPostCopy(ow, { ...appConfig.getPassthruParams(), batchNumber }, fgStatus);
     } catch (err) {
         await fgStatus.updateStatusToStateLib({
@@ -211,8 +213,8 @@ async function triggerPostCopy(ow, params, fgStatus) {
         params
     }).then(async (result) => {
         // attaching activation id to the status
+        // Its possible status is updated in post copy action before this callback is called.
         await fgStatus.updateStatusToStateLib({
-            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             postPromoteActivationId: result.activationId
         });
         return {

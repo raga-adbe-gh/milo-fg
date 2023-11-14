@@ -220,7 +220,7 @@ async function triggerPromoteWorkerAction(ow, params, fgStatus) {
             status: FgStatus.PROJECT_STATUS.FAILED,
             statusMessage: `Failed to invoke actions ${err.message} for batch ${params.batchNumber}`
         });
-        logger.error('Failed to invoke actions', err);
+        logger.error(`Failed for batch ${params.batchNumber}`, err);
         return {
             batchNumber: params.batchNumber
         };

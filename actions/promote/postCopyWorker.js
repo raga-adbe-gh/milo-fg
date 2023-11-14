@@ -54,14 +54,14 @@ async function main(params) {
             return exitAction(vStat);
         }
 
-        respPayload = `Previewing/Publishing promoted content for ${batchNumber}`;
+        respPayload = 'Previewing/Publishing promoted content';
+        logger.info(respPayload);
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             statusMessage: respPayload
         });
-        logger.info(respPayload);
-        respPayload = await previewPublish(payload.doPublish, batchManager);
 
+        respPayload = await previewPublish(payload.doPublish, batchManager);
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED,
             statusMessage: respPayload
@@ -89,7 +89,7 @@ async function previewPublish(doPublish, batchManager) {
     const currBatchLbl = `Batch-${currentBatch.getBatchNumber()}`;
     const allFloodgatedFiles = await currentBatch.getFiles();
     const promotedFiles = allFloodgatedFiles.map((e) => e.file.filePath);
-    const resultsContent = await currentBatch.getResultsContent() || [];
+    const resultsContent = await currentBatch.getResultsContent() || {};
     const failedPromotes = resultsContent.failedPromotes || [];
     const prevPaths = promotedFiles.filter((item) => !failedPromotes.includes(item)).map((e) => handleExtension(e));
     logger.info(`Post promote files for ${currBatchLbl} are ${prevPaths?.length}`);
@@ -123,12 +123,10 @@ async function previewPublish(doPublish, batchManager) {
         // Write the information to batch manifest
         currentBatch.writeResults({ failedPromotes, failedPreviews, failedPublishes });
         throw new Error(stepMsg);
-    } else {
-        stepMsg = `Promoted floodgate for ${currBatchLbl} successfully`;
-        logger.info(stepMsg);
     }
     logMemUsage();
-    stepMsg = `All tasks for floodgate promote of ${currBatchLbl} is completed`;
+    logger.info(`All tasks for promote ${currBatchLbl} is completed`);
+    stepMsg = 'All tasks for floodgate promote is completed';
     return stepMsg;
 }
 

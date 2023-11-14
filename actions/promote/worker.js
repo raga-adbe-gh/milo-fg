@@ -223,9 +223,9 @@ async function triggerPostCopy(ow, params, fgStatus) {
     }).catch(async (err) => {
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.FAILED,
-            statusMessage: `Failed to invoke actions ${err.message} for batch ${params.batchNumber}`
+            statusMessage: `Failed to invoke actions ${err.message}`
         });
-        getAioLogger().error('Failed to invoke actions', err);
+        getAioLogger().error(`Failed to invoke actions for batch ${params.batchNumber}`, err);
         return {};
     });
 }

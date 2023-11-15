@@ -63,7 +63,13 @@ async function main(params) {
             return exitAction(vStat);
         }
 
-        respPayload = 'Getting status of all reference activation.';
+        const promoteProg = batchesInfo.reduce((acc, item) => {
+            acc.total += 1;
+            acc.prog += item.done || item.activationId ? 1 : 0;
+            return acc;
+        }, { total: 0, prog: 0 });
+
+        respPayload = promoteProg.prog ? `Promoting batch ${promoteProg.prog} / ${promoteProg.total}.` : 'Promoting files.';
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             statusMessage: respPayload

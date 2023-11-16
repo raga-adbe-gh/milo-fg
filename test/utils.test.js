@@ -43,4 +43,10 @@ describe('handleExtension', () => {
     test('files with space in path', () => {
         expect(utils.handleExtension('/path/to/Sample_Test.docx')).toEqual('/path/to/sample-test');
     });
+    test('file in root path', () => {
+        expect(utils.handleExtension('/Sample_Test.docx')).toEqual('/sample-test');
+    });
+    test('file without extension', () => {
+        expect(utils.handleExtension('/Sample_Test')).toEqual('/sample-test');
+    });
 });

@@ -49,4 +49,7 @@ describe('handleExtension', () => {
     test('file without extension', () => {
         expect(utils.handleExtension('/Sample_Test')).toEqual('/sample-test');
     });
+    test('file without extension', () => {
+        expect(utils.handleExtension('/.config')).toEqual('/.config');
+    });
 });

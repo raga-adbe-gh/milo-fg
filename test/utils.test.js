@@ -34,4 +34,13 @@ describe('handleExtension', () => {
     test('docx path', () => {
         expect(utils.handleExtension('/path/to/index.docx')).toEqual('/path/to/');
     });
+    test('files with caps in path', () => {
+        expect(utils.handleExtension('/path/to/Sample.docx')).toEqual('/path/to/sample');
+    });
+    test('files with space in path', () => {
+        expect(utils.handleExtension('/path/to/sample test.docx')).toEqual('/path/to/sample-test');
+    });
+    test('files with space in path', () => {
+        expect(utils.handleExtension('/path/to/Sample_Test.docx')).toEqual('/path/to/sample-test');
+    });
 });

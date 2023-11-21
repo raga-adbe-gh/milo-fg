@@ -21,7 +21,7 @@ const {
     updateExcelTable, getFile, saveFile, copyFile, bulkCreateFolders
 } = require('../sharepoint');
 const {
-    getAioLogger, handleExtension, delay, logMemUsage, COPY_ACTION
+    toUTCStr, getAioLogger, handleExtension, delay, logMemUsage, COPY_ACTION
 } = require('../utils');
 const helixUtils = require('../helixUtils');
 const FgStatus = require('../fgStatus');
@@ -183,7 +183,7 @@ async function floodgateContent(projectExcelPath, projectDetail, fgStatus, fgCol
     });
 
     const { startTime: startCopy, endTime: endCopy } = fgStatus.getStartEndTime();
-    const excelValues = [['COPY', startCopy, endCopy, failedCopies.join('\n'), failedPreviews.join('\n')]];
+    const excelValues = [['COPY', toUTCStr(startCopy), toUTCStr(endCopy), failedCopies.join('\n'), failedPreviews.join('\n')]];
     await updateExcelTable(projectExcelPath, 'COPY_STATUS', excelValues);
     logger.info('Project excel file updated with copy status.');
 

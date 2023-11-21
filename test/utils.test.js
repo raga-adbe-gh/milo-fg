@@ -60,3 +60,24 @@ describe('strToArray', () => {
         expect(utils.strToArray(td1)).toEqual(td1);
     });
 });
+
+describe('toUTCStr', () => {
+    test('iso string', () => {
+        expect(utils.toUTCStr('2023-11-07T07:00:33.462Z')).toEqual('Tue, 07 Nov 2023 07:00:33 GMT');
+    });
+    test('iso date', () => {
+        expect(utils.toUTCStr(new Date('2023-11-07T07:00:33.462Z'))).toEqual('Tue, 07 Nov 2023 07:00:33 GMT');
+    });
+    test('utc string', () => {
+        expect(utils.toUTCStr('Tue, 07 Nov 2023 07:00:33 GMT')).toEqual('Tue, 07 Nov 2023 07:00:33 GMT');
+    });
+    test('another string', () => {
+        expect(utils.toUTCStr('2023-NOV-07 07:00:33 AM GMT')).toEqual('Tue, 07 Nov 2023 07:00:33 GMT');
+    });
+    test('empty string', () => {
+        expect(utils.toUTCStr('')).toEqual('');
+    });
+    test('no val', () => {
+        expect(utils.toUTCStr()).toEqual(undefined);
+    });
+});

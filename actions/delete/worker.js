@@ -17,7 +17,7 @@
 const openwhisk = require('openwhisk');
 const { deleteFloodgateDir, updateExcelTable } = require('../sharepoint');
 const {
-    getAioLogger, logMemUsage, DELETE_ACTION
+    toUTCStr, getAioLogger, logMemUsage, DELETE_ACTION
 } = require('../utils');
 const FgStatus = require('../fgStatus');
 const FgAction = require('../FgAction');
@@ -60,7 +60,7 @@ async function main(params) {
             statusMessage: respPayload
         });
         const { startTime: startDelete, endTime: endDelete } = fgStatus.getStartEndTime();
-        const excelValues = [['DELETE', startDelete, endDelete, respPayload]];
+        const excelValues = [['DELETE', toUTCStr(startDelete), toUTCStr(endDelete), respPayload]];
         await updateExcelTable(projectExcelPath, 'DELETE_STATUS', excelValues);
         logger.info('Project excel file updated with delete status.');
     } catch (err) {

@@ -19,7 +19,7 @@
 const openwhisk = require('openwhisk');
 const { updateExcelTable } = require('../sharepoint');
 const {
-    getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress
+    toUTCStr, getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress
 } = require('../utils');
 const appConfig = require('../appConfig');
 const FgStatus = require('../fgStatus');
@@ -274,11 +274,14 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
         status: fgErrors ? FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR : FgStatus.PROJECT_STATUS.COMPLETED,
         statusMessage: fgErrors ?
             'Error occurred when promoting floodgated content. Check project excel sheet for additional information.' :
-            'Promoted floodgate tree successfully.'
+            'Promoted floodgate tree successfully.',
+        details: {
+            [FgStatus.PROJECT_STAGE.PROMOTE_COPY_STATUS]: null
+        }
     });
 
     const { startTime: startPromote, endTime: endPromote } = fgStatus.getStartEndTime();
-    const excelValues = [['PROMOTE', startPromote, endPromote, failedPromotes.join('\n'), failedPreviews.join('\n'), failedPublishes.join('\n')]];
+    const excelValues = [['PROMOTE', toUTCStr(startPromote), toUTCStr(endPromote), failedPromotes.join('\n'), failedPreviews.join('\n'), failedPublishes.join('\n')]];
     await updateExcelTable(projectExcelPath, 'PROMOTE_STATUS', excelValues);
     logger.info('Project excel file updated with promote status.');
 

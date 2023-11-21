@@ -153,6 +153,11 @@ function strToArray(val) {
     return val;
 }
 
+function toUTCStr(dt) {
+    const ret = new Date(dt);
+    return Number.isNaN(ret.getTime()) ? dt : ret.toUTCString();
+}
+
 module.exports = {
     errorResponse,
     getAioLogger,
@@ -167,5 +172,6 @@ module.exports = {
     logMemUsageIter,
     actInProgress,
     getInstanceKey,
-    strToArray
+    strToArray,
+    toUTCStr
 };

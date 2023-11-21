@@ -108,9 +108,10 @@ class FgAction {
         const resp = { ok: false, message: 'User Validation' };
         logger.debug(resp.message);
         let stepMsg;
-        const storeValue = await this.fgStatus.getStatusFromStateLib();
+        const storeValue = await this.fgStatus.getStatusFromStateLib() || {};
         if (this.fgUser && !await this.fgUser.isUser()) {
-            stepMsg = 'Unauthorized Access! Please contact Floodgate Administrators.';
+            stepMsg = 'Unauthorized Access! Refresh page and retry OR contact Floodgate Administrators.';
+            storeValue.action = storeValue.action || {};
             storeValue.action.status = FgStatus.PROJECT_STATUS.FAILED;
             storeValue.action.message = stepMsg;
             resp.details = storeValue;
@@ -130,7 +131,7 @@ class FgAction {
         const resp = { ok: false, message: 'Action In Progress' };
         logger.debug(resp.message);
         let stepMsg;
-        const storeValue = await this.fgStatus.getStatusFromStateLib();
+        const storeValue = await this.fgStatus.getStatusFromStateLib() || {};
         const svStatus = storeValue?.action?.status;
         const actId = storeValue?.action?.activationId;
         const fgInProg = FgStatus.isInProgress(svStatus);
@@ -139,6 +140,7 @@ class FgAction {
             if (!checkActivation || await actInProgress(this.ow, actId, FgStatus.isInProgress(svStatus))) {
                 stepMsg = `A ${this.action} project with activationid: ${storeValue?.action?.activationId} is already in progress. 
                 Not triggering this action. And the previous action can be retrieved by refreshing the console page`;
+                storeValue.action = storeValue.action || {};
                 storeValue.action.status = FgStatus.PROJECT_STATUS.FAILED;
                 storeValue.action.message = stepMsg;
                 resp.message = stepMsg;

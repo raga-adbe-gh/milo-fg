@@ -35,3 +35,13 @@ describe('handleExtension', () => {
         expect(utils.handleExtension('/path/to/index.docx')).toEqual('/path/to/');
     });
 });
+
+describe('strToArray', () => {
+    const td1 = ['a', 'b', 'c'];
+    test('str to array', () => {
+        expect(utils.strToArray('a,b,c')).toEqual(td1);
+    });
+    test('str to array with array input', () => {
+        expect(utils.strToArray(td1)).toEqual(td1);
+    });
+});

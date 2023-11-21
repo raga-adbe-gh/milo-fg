@@ -16,7 +16,7 @@
  ************************************************************************* */
 
 const crypto = require('crypto');
-const { getAioLogger } = require('./utils');
+const { strToArray, getAioLogger } = require('./utils');
 const UrlInfo = require('./urlInfo');
 
 // Max activation is 1hrs, set to 2hrs
@@ -44,7 +44,7 @@ class AppConfig {
         payload.fgShareUrl = params.fgShareUrl;
         payload.rootFolder = params.rootFolder;
         payload.fgRootFolder = params.fgRootFolder;
-        payload.promoteIgnorePaths = params.promoteIgnorePaths || ['/.milo', '/.helix', '/metadata.xlsx'];
+        payload.promoteIgnorePaths = strToArray(params.promoteIgnorePaths) || ['/.milo', '/.helix', '/metadata.xlsx'];
         payload.doPublish = params.doPublish;
         payload.driveId = params.driveId;
         payload.fgColor = params.fgColor || 'pink';

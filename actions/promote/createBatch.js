@@ -111,11 +111,7 @@ async function main(params) {
 async function createBatch(batchManager, appConf) {
     const { sp } = await getConfig();
     const options = await getAuthorizedRequestOption({ method: 'GET' });
-    let promoteIgnoreList = appConf.getPromoteIgnorePaths() || [];
-    if (promoteIgnoreList && typeof promoteIgnoreList === 'string') {
-        const tmpLst = promoteIgnoreList;
-        promoteIgnoreList = tmpLst.split(',').map((e) => e.trim());
-    }
+    const promoteIgnoreList = appConf.getPromoteIgnorePaths();
     logger.info(`Promote ignore list: ${promoteIgnoreList}`);
 
     // Temporarily restricting the iteration for promote to under /drafts folder only

@@ -134,6 +134,13 @@ function errorResponse(statusCode, message) {
     };
 }
 
+function strToArray(val) {
+    if (val && typeof val === 'string') {
+        return val.split(',').map((e) => e.trim()).filter((e) => e);
+    }
+    return val;
+}
+
 module.exports = {
     errorResponse,
     getAioLogger,
@@ -147,5 +154,6 @@ module.exports = {
     logMemUsage,
     logMemUsageIter,
     actInProgress,
-    getInstanceKey
+    getInstanceKey,
+    strToArray
 };

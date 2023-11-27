@@ -46,7 +46,7 @@ async function main(params) {
         }
         respPayload = 'Started deleting content';
         logger.info(respPayload);
-        fgStatus.updateStatusToStateLib({
+        await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             statusMessage: respPayload
         });
@@ -64,7 +64,7 @@ async function main(params) {
         await updateExcelTable(projectExcelPath, 'DELETE_STATUS', excelValues);
         logger.info('Project excel file updated with delete status.');
     } catch (err) {
-        fgStatus.updateStatusToStateLib({
+        await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
             statusMessage: err.message
         });

@@ -55,7 +55,7 @@ async function main(params) {
 
         respPayload = 'Getting all files to be floodgated from the project excel file';
         logger.info(respPayload);
-        fgStatus.updateStatusToStateLib({
+        await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             statusMessage: respPayload
         });
@@ -64,7 +64,7 @@ async function main(params) {
 
         respPayload = 'Injecting sharepoint data';
         logger.info(respPayload);
-        fgStatus.updateStatusToStateLib({
+        await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             statusMessage: respPayload
         });
@@ -79,7 +79,7 @@ async function main(params) {
 
         respPayload = await floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor);
     } catch (err) {
-        fgStatus.updateStatusToStateLib({
+        await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
             statusMessage: err.message
         });

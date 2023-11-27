@@ -72,7 +72,7 @@ async function main(params) {
 
         respPayload = 'Start floodgating content';
         logger.info(respPayload);
-        fgStatus.updateStatusToStateLib({
+        await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             statusMessage: respPayload
         });

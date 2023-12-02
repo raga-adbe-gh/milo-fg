@@ -37,6 +37,7 @@ jobs:
           SITE_ROOT_PATH_REX: ${{ vars.SITE_ROOT_PATH_REX }}
           BULK_PREVIEW_CHECK_INTERVAL: ${{ vars.BULK_PREVIEW_CHECK_INTERVAL }}
           MAX_BULK_PREVIEW_CHECKS: ${{ vars.MAX_BULK_PREVIEW_CHECKS }}
+          ENABLE_PREVEW_PUBLISH: ${{ vars.ENABLE_PREVEW_PUBLISH }}
       - name: Checkout
         uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}
@@ -85,6 +86,7 @@ jobs:
           SITE_ROOT_PATH_REX: ${{ vars.SITE_ROOT_PATH_REX }}
           BULK_PREVIEW_CHECK_INTERVAL: ${{ vars.BULK_PREVIEW_CHECK_INTERVAL }}
           MAX_BULK_PREVIEW_CHECKS: ${{ vars.MAX_BULK_PREVIEW_CHECKS }}
+          ENABLE_PREVEW_PUBLISH: ${{ vars.ENABLE_PREVEW_PUBLISH }}
         uses: adobe/aio-apps-action@2.0.2
         with:
           os: ${{ matrix.os }}

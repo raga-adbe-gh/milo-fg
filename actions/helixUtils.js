@@ -55,7 +55,7 @@ class HelixUtils {
         const repo = this.getRepo(isFloodgate, fgColor);
         const { enablePreviewPublish } = appConfig.getConfig();
         const repoRegexArr = enablePreviewPublish.map((ps) => new RegExp(`^${ps}$`));
-        return repoRegexArr.find((rx) => rx.test(repo));
+        return true && repoRegexArr.find((rx) => rx.test(repo));
     }
 
     /**

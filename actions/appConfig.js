@@ -70,6 +70,7 @@ class AppConfig {
         this.configMap.helixAdminApiKeys = this.getJsonFromStr(params.helixAdminApiKeys);
         this.configMap.bulkPreviewCheckInterval = parseInt(params.bulkPreviewCheckInterval || '30', 10);
         this.configMap.maxBulkPreviewChecks = parseInt(params.maxBulkPreviewChecks || '30', 10);
+        this.configMap.enablePreviewPublish = this.getJsonFromStr(params.enablePreviewPublish, []);
         this.extractPrivateKey();
 
         payload.ext = {

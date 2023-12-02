@@ -45,8 +45,17 @@ class HelixUtils {
         return helixAdminApiKeys[repo];
     }
 
+    /**
+     * Checks if the preview is enabled for the main or floodgate site
+     * @param {*} isFloodgate true for copy
+     * @param {*} fgColor floodgate color for the current event
+     * @returns true if preview is enabled
+     */
     canBulkPreviewPublish(isFloodgate = false, fgColor = 'pink') {
-        return !!this.getAdminApiKey(isFloodgate, fgColor);
+        const repo = this.getRepo(isFloodgate, fgColor);
+        const { enablePreviewPublish } = appConfig.getConfig();
+        const repoRegexArr = enablePreviewPublish.map((ps) => new RegExp(`^${ps}$`));
+        return repoRegexArr.find((rx) => rx.test(repo));
     }
 
     /**

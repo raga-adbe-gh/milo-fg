@@ -26,6 +26,7 @@ application:
           bulkPreviewCheckInterval: $BULK_PREVIEW_CHECK_INTERVAL
           maxBulkPreviewChecks: $MAX_BULK_PREVIEW_CHECKS
           skipInProgressCheck: $SKIP_INPROGRESS_CHECK
+          enablePreviewPublish: $ENABLE_PREVEW_PUBLISH
         actions:
           copy:
             function: actions/copy/copy.js

@@ -158,6 +158,23 @@ function toUTCStr(dt) {
     return Number.isNaN(ret.getTime()) ? dt : ret.toUTCString();
 }
 
+function isFilePathWithWildcard(filePath, pattern) {
+    if (!filePath || !pattern) {
+        return false;
+    }
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const wildcardToRegex = (wildcard) => escapeRegExp(wildcard).replace(/\\\*/g, '.*');
+    const regexPattern = new RegExp(`^${wildcardToRegex(pattern)}$`);
+    return regexPattern.test(filePath);
+}
+
+function isFilePatternMatched(filePath, patterns) {
+    if (patterns && Array.isArray(patterns)) {
+        return !!patterns.find((pattern) => isFilePathWithWildcard(filePath, pattern) || isFilePathWithWildcard(filePath, `${pattern}/*`));
+    }
+    return isFilePathWithWildcard(filePath, patterns);
+}
+
 module.exports = {
     errorResponse,
     getAioLogger,
@@ -173,5 +190,7 @@ module.exports = {
     actInProgress,
     getInstanceKey,
     strToArray,
-    toUTCStr
+    toUTCStr,
+    isFilePathWithWildcard,
+    isFilePatternMatched
 };

@@ -20,7 +20,7 @@ const {
     getAuthorizedRequestOption, fetchWithRetry
 } = require('../sharepoint');
 const {
-    getAioLogger, logMemUsage, getInstanceKey, PROMOTE_ACTION
+    getAioLogger, logMemUsage, getInstanceKey, isFilePatternMatched, PROMOTE_ACTION
 } = require('../utils');
 const FgAction = require('../FgAction');
 const FgStatus = require('../fgStatus');
@@ -146,7 +146,7 @@ async function findAndBatchFGFiles(
             for (let di = 0; di < driveItems?.length; di += 1) {
                 const item = driveItems[di];
                 const itemPath = `${item.parentReference.path.replace(pPathRegExp, '')}/${item.name}`;
-                if (!promoteIgnoreList?.includes(itemPath)) {
+                if (!isFilePatternMatched(itemPath, promoteIgnoreList)) {
                     if (item.folder) {
                         // it is a folder
                         fgFolders.push(itemPath);

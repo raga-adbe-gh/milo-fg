@@ -81,3 +81,40 @@ describe('toUTCStr', () => {
         expect(utils.toUTCStr()).toEqual(undefined);
     });
 });
+
+describe('isFilePathWithWildcard', () => {
+    test('matches exact file path', () => {
+        expect(utils.isFilePathWithWildcard('/path/to/file.txt', '/path/to/file.txt')).toBe(true);
+    });
+
+    test('matches file path with wildcard', () => {
+        expect(utils.isFilePathWithWildcard('/path/to/directory/', '/path/to/*')).toBe(true);
+    });
+
+    test('matches file with wildcard extension', () => {
+        expect(utils.isFilePathWithWildcard('file_with_space.txt', '*.txt')).toBe(true);
+    });
+
+    test('match a prefix wild card', () => {
+        expect(utils.isFilePathWithWildcard('/drafts/a/query-index.xlsx', '*/query-index.xlsx')).toBe(true);
+        expect(utils.isFilePathWithWildcard('/drafts/b/query-index.xlsx', '*/query-index.xlsx')).toBe(true);
+        expect(utils.isFilePathWithWildcard('/drafts/b/c/query-index.xlsx', '*/query-index.xlsx')).toBe(true);
+    });
+
+    test('matches dot files', () => {
+        expect(utils.isFilePathWithWildcard('/.milo', '/.milo')).toBe(true);
+        expect(utils.isFilePathWithWildcard('/amilo', '/.milo')).toBe(false);
+    });
+});
+
+describe('isFilePatternMatched', () => {
+    const patterns = ['/.milo', '/.helix', '/metadata.xlsx', '/a/Caps', '*/query-index.xlsx'];
+    test('matches a set of file', () => {
+        expect(utils.isFilePatternMatched('/.helix', patterns)).toBe(true);
+        expect(utils.isFilePatternMatched('/a/Caps', patterns)).toBe(true);
+        expect(utils.isFilePatternMatched('/a/Caps/Test', patterns)).toBe(true);
+        expect(utils.isFilePatternMatched('/a/ACaps/Test', patterns)).toBe(false);
+        expect(utils.isFilePatternMatched('/a/query-index.xlsx', patterns)).toBe(true);
+        expect(utils.isFilePatternMatched('/a/b/query-index.xlsx', patterns)).toBe(true);
+    });
+});

@@ -44,7 +44,8 @@ class AppConfig {
         payload.fgShareUrl = params.fgShareUrl;
         payload.rootFolder = params.rootFolder;
         payload.fgRootFolder = params.fgRootFolder;
-        payload.promoteIgnorePaths = strToArray(params.promoteIgnorePaths) || ['/.milo', '/.helix', '/metadata.xlsx'];
+        payload.promoteIgnorePaths = strToArray(params.promoteIgnorePaths) || [];
+        payload.promoteIgnorePaths.push('/.milo', '/.helix', '/metadata.xlsx', '*/query-index.xlsx');
         payload.doPublish = params.doPublish;
         payload.driveId = params.driveId;
         payload.fgColor = params.fgColor || 'pink';

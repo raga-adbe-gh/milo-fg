@@ -118,7 +118,7 @@ async function createBatch(batchManager, appConf) {
     return findAndBatchFGFiles({
         baseURI: sp.api.file.get.fgBaseURI,
         options,
-        fgFolders: ['/drafts'],
+        fgFolders: appConf.isDraftOnly() ? ['/drafts'] : ['/'],
         promoteIgnoreList,
         downloadBaseURI: sp.api.file.download.baseURI
     }, batchManager);

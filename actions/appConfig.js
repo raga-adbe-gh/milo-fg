@@ -45,10 +45,10 @@ class AppConfig {
         payload.rootFolder = params.rootFolder;
         payload.fgRootFolder = params.fgRootFolder;
         payload.promoteIgnorePaths = strToArray(params.promoteIgnorePaths) || [];
-        payload.promoteIgnorePaths.push('/.milo', '/.helix', '/metadata.xlsx', '*/query-index.xlsx');
         payload.doPublish = params.doPublish;
         payload.driveId = params.driveId;
         payload.fgColor = params.fgColor || 'pink';
+        payload.draftsOnly = params.draftsOnly;
 
         // These are from configs and not activation related
         this.configMap.fgSite = params.fgSite;
@@ -159,7 +159,8 @@ class AppConfig {
     }
 
     getPromoteIgnorePaths() {
-        return this.getPayload().promoteIgnorePaths;
+        const pips = this.getPayload().promoteIgnorePaths;
+        return [...pips, '/.milo', '/.helix', '/metadata.xlsx', '*/query-index.xlsx'];
     }
 
     extractPrivateKey() {
@@ -209,6 +210,17 @@ class AppConfig {
 
     getUrlInfo() {
         return this.getPayload().ext.urlInfo;
+    }
+
+    isDraftOnly() {
+        const { draftsOnly } = this.getPayload();
+        if (draftsOnly === undefined) {
+            return true;
+        }
+        if (typeof draftsOnly === 'string') {
+            return draftsOnly.trim().toLowerCase() !== 'false';
+        }
+        return draftsOnly;
     }
 }
 

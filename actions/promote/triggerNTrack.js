@@ -63,6 +63,7 @@ async function main(params) {
             return exitAction(vStat);
         }
 
+        // Checks how many batches are in progress and the total batch count
         const promoteProg = batchesInfo.reduce((acc, item) => {
             acc.total += 1;
             acc.prog += item.done || item.activationId ? 1 : 0;

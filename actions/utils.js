@@ -153,6 +153,13 @@ function strToArray(val) {
     return val;
 }
 
+function strToBool(val) {
+    if (val !== undefined && typeof val === 'string') {
+        return val.trim().toLowerCase() === 'true';
+    }
+    return val;
+}
+
 function toUTCStr(dt) {
     const ret = new Date(dt);
     return Number.isNaN(ret.getTime()) ? dt : ret.toUTCString();
@@ -192,5 +199,6 @@ module.exports = {
     strToArray,
     toUTCStr,
     isFilePathWithWildcard,
-    isFilePatternMatched
+    isFilePatternMatched,
+    strToBool
 };

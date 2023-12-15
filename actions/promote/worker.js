@@ -47,7 +47,6 @@ async function main(params) {
     const fgAction = new FgAction(`${PROMOTE_BATCH}_${batchNumber}`, params);
     fgAction.init({ ow, skipUserDetails: true, fgStatusParams: { keySuffix: `Batch_${batchNumber}` } });
     const { fgStatus } = fgAction.getActionParams();
-    const payload = appConfig.getPayload();
     const fgRootFolder = appConfig.getSiteFgRootPath();
 
     let respPayload;
@@ -73,7 +72,7 @@ async function main(params) {
         });
         respPayload = 'Promote files';
         logger.info(respPayload);
-        respPayload = await promoteFloodgatedFiles(payload.doPublish, batchManager);
+        respPayload = await promoteFloodgatedFiles(batchManager);
         respPayload = `Promoted files ${JSON.stringify(respPayload)}`;
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
@@ -130,7 +129,7 @@ async function promoteCopy(srcPath, destinationFolder) {
     return copySuccess;
 }
 
-async function promoteFloodgatedFiles(doPublish, batchManager) {
+async function promoteFloodgatedFiles(batchManager) {
     const logger = getAioLogger();
 
     async function promoteFile(batchItem) {

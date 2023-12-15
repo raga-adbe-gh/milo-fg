@@ -42,7 +42,6 @@ async function main(params) {
     const fgAction = new FgAction(`${PROMOTE_BATCH}_${batchNumber}`, params);
     fgAction.init({ ow, skipUserDetails: true, fgStatusParams: { keySuffix: `Batch_${batchNumber}` } });
     const { fgStatus } = fgAction.getActionParams();
-    const payload = appConfig.getPayload();
     const fgRootFolder = appConfig.getSiteFgRootPath();
 
     let respPayload;
@@ -61,7 +60,7 @@ async function main(params) {
             statusMessage: respPayload
         });
 
-        respPayload = await previewPublish(payload.doPublish, batchManager);
+        respPayload = await previewPublish(appConfig.getDoPublish(), batchManager);
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED,
             statusMessage: respPayload

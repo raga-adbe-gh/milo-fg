@@ -118,3 +118,18 @@ describe('isFilePatternMatched', () => {
         expect(utils.isFilePatternMatched('/a/b/query-index.xlsx', patterns)).toBe(true);
     });
 });
+
+describe('strToBool', () => {
+    test('Check for a set of true and false inputs', () => {
+        expect(utils.strToBool('true')).toBeTruthy();
+        expect(utils.strToBool('TRUE')).toBeTruthy();
+        expect(utils.strToBool(true)).toBeTruthy();
+        expect(utils.strToBool('false')).not.toBeTruthy();
+        expect(utils.strToBool('FALSE')).not.toBeTruthy();
+        expect(utils.strToBool(false)).not.toBeTruthy();
+        expect(utils.strToBool('something')).not.toBeTruthy();
+        expect(utils.strToBool('')).not.toBeTruthy();
+        expect(utils.strToBool(null)).not.toBeTruthy();
+        expect(utils.strToBool(undefined)).not.toBeTruthy();
+    });
+});

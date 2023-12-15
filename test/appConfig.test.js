@@ -95,6 +95,7 @@ describe('appConfig', () => {
             }
         });
         expect(appConfig.isDraftOnly()).toBeTruthy();
+        expect(appConfig.getDoPublish()).not.toBeTruthy();
 
         appConfig.removePayload();
         expect(() => appConfig.getPayload()).toThrow();

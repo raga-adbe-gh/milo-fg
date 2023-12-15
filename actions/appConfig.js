@@ -16,7 +16,7 @@
  ************************************************************************* */
 
 const crypto = require('crypto');
-const { strToArray, getAioLogger } = require('./utils');
+const { strToArray, strToBool, getAioLogger } = require('./utils');
 const UrlInfo = require('./urlInfo');
 
 // Max activation is 1hrs, set to 2hrs
@@ -221,6 +221,10 @@ class AppConfig {
             return draftsOnly.trim().toLowerCase() !== 'false';
         }
         return draftsOnly;
+    }
+
+    getDoPublish() {
+        return strToBool(this.getPayload().doPublish);
     }
 }
 

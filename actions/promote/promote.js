@@ -33,7 +33,8 @@ async function main(args) {
         actParams: ['adminPageUri', 'projectExcelPath'],
         checkUser: true,
         checkStatus: true,
-        checkActivation: false
+        checkActivation: false,
+        checkEvent: true
     };
     const ow = openwhisk();
     // Initialize action

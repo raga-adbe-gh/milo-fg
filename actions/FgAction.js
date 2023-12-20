@@ -23,6 +23,7 @@ const FgStatus = require('./fgStatus');
 const FG_PROOCESS_ACTION = 'fgProcessAction';
 const logger = getAioLogger();
 const BAD_REQUEST_SC = 400;
+const ACCESS_DENIED_SC = 403;
 const AUTH_FAILED_SC = 401;
 const GEN_ERROR_SC = 500;
 const ALL_OK_SC = 200;
@@ -152,6 +153,28 @@ class FgAction {
         return resp;
     }
 
+    async validateEventParameters() {
+        const resp = { ok: false, message: 'Event paramters validation.' };
+        const storeValue = await this.fgStatus.getStatusFromStateLib() || {};
+        const pdoverride = appConfig.getPdoverride();
+        const edgeWorkerEndDate = appConfig.getEdgeWorkerEndDate();
+        if (!pdoverride && edgeWorkerEndDate) {
+            const checkDate = new Date().setDate(edgeWorkerEndDate.getDate() + 1);
+            let stepMsg;
+            if (new Date() <= checkDate) {
+                stepMsg = 'Access Denied!';
+                storeValue.action = storeValue.action || {};
+                storeValue.action.status = FgStatus.PROJECT_STATUS.FAILED;
+                storeValue.action.message = stepMsg;
+                resp.message = 'Access Denied!';
+                resp.details = storeValue;
+                return resp;
+            }
+        }
+        resp.ok = true;
+        return resp;
+    }
+
     /**
      * Validation for action for params/user/action
      * @param {*} opts options for validation
@@ -162,7 +185,8 @@ class FgAction {
         actParams,
         checkUser = false,
         checkStatus = false,
-        checkActivation = false
+        checkActivation = false,
+        checkEvent = false
     }) {
         const OKVAL = { ok: true };
         let vStat = statParams ? await this.validateStatusParams(statParams) : OKVAL;
@@ -185,6 +209,14 @@ class FgAction {
         if (!vStat.ok) {
             return {
                 code: AUTH_FAILED_SC,
+                payload: vStat.details,
+            };
+        }
+
+        vStat = checkEvent ? await this.validateEventParameters() : OKVAL;
+        if (!vStat.ok) {
+            return {
+                code: ACCESS_DENIED_SC,
                 payload: vStat.details,
             };
         }

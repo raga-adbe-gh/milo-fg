@@ -96,6 +96,8 @@ describe('appConfig', () => {
         });
         expect(appConfig.isDraftOnly()).toBeTruthy();
         expect(appConfig.getDoPublish()).not.toBeTruthy();
+        expect(!!appConfig.getPdoverride()).toBeFalsy();
+        expect(!!appConfig.getEdgeWorkerEndDate()).toBeFalsy();
 
         appConfig.removePayload();
         expect(() => appConfig.getPayload()).toThrow();
@@ -112,6 +114,13 @@ describe('appConfig', () => {
         const { draftsOnly, ...remParams } = params;
         appConfig.setAppConfig({ draftsOnly: 'false', ...remParams });
         expect(appConfig.isDraftOnly()).toBeFalsy();
+        appConfig.removePayload();
+    });
+
+    test('Test pdoverride and edgeWorkerEndDate', () => {
+        appConfig.setAppConfig({ ...params, pdoverride: 'false', edgeWorkerEndDate: 'Wed, 20 Dec 2023 13:56:49 GMT' });
+        expect(appConfig.getPdoverride()).toBeFalsy();
+        expect(appConfig.getEdgeWorkerEndDate().getTime()).toBe(1703080609000);
         appConfig.removePayload();
     });
 });

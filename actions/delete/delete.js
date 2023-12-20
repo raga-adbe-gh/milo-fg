@@ -33,7 +33,8 @@ async function main(args) {
         actParams: ['adminPageUri'],
         checkUser: true,
         checkStatus: true,
-        checkActivation: true
+        checkActivation: true,
+        checkEvent: true
     };
     const ow = openwhisk();
     // Initialize action

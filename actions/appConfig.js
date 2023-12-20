@@ -49,6 +49,8 @@ class AppConfig {
         payload.driveId = params.driveId;
         payload.fgColor = params.fgColor || 'pink';
         payload.draftsOnly = params.draftsOnly;
+        payload.pdoverride = params.pdoverride;
+        payload.edgeWorkerEndDate = params.edgeWorkerEndDate;
 
         // These are from configs and not activation related
         this.configMap.fgSite = params.fgSite;
@@ -225,6 +227,19 @@ class AppConfig {
 
     getDoPublish() {
         return strToBool(this.getPayload().doPublish);
+    }
+
+    getPdoverride() {
+        return strToBool(this.getPayload().pdoverride);
+    }
+
+    getEdgeWorkerEndDate() {
+        try {
+            const dtStr = this.getPayload().edgeWorkerEndDate;
+            return dtStr ? new Date(this.getPayload().edgeWorkerEndDate) : null;
+        } catch (err) {
+            return null;
+        }
     }
 }
 

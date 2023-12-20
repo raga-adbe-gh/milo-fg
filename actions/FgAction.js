@@ -103,6 +103,33 @@ class FgAction {
     }
 
     /**
+     * Validates event data is gone past over a day for allowing promote or delete
+     * @returns respons object with ok as true or false and state details
+     */
+    async validateEventParameters() {
+        const resp = { ok: false, message: 'Event paramters validation.' };
+        const storeValue = await this.fgStatus.getStatusFromStateLib() || {};
+        const pdoverride = appConfig.getPdoverride();
+        const edgeWorkerEndDate = appConfig.getEdgeWorkerEndDate();
+        if (!pdoverride && edgeWorkerEndDate) {
+            const checkDate = new Date().setDate(edgeWorkerEndDate.getDate() + 1);
+            let stepMsg;
+            if (new Date() <= checkDate) {
+                stepMsg = 'Access Denied! Event in progress or concluded within 24 hours.';
+                await this.fgStatus?.updateStatusToStateLib({
+                    status: FgStatus.PROJECT_STATUS.FAILED,
+                    statusMessage: stepMsg
+                });
+                resp.message = stepMsg;
+                resp.details = storeValue;
+                return resp;
+            }
+        }
+        resp.ok = true;
+        return resp;
+    }
+
+    /**
      * User validations for action
      */
     async validateUser() {
@@ -153,28 +180,6 @@ class FgAction {
         return resp;
     }
 
-    async validateEventParameters() {
-        const resp = { ok: false, message: 'Event paramters validation.' };
-        const storeValue = await this.fgStatus.getStatusFromStateLib() || {};
-        const pdoverride = appConfig.getPdoverride();
-        const edgeWorkerEndDate = appConfig.getEdgeWorkerEndDate();
-        if (!pdoverride && edgeWorkerEndDate) {
-            const checkDate = new Date().setDate(edgeWorkerEndDate.getDate() + 1);
-            let stepMsg;
-            if (new Date() <= checkDate) {
-                stepMsg = 'Access Denied!';
-                storeValue.action = storeValue.action || {};
-                storeValue.action.status = FgStatus.PROJECT_STATUS.FAILED;
-                storeValue.action.message = stepMsg;
-                resp.message = 'Access Denied!';
-                resp.details = storeValue;
-                return resp;
-            }
-        }
-        resp.ok = true;
-        return resp;
-    }
-
     /**
      * Validation for action for params/user/action
      * @param {*} opts options for validation
@@ -205,18 +210,18 @@ class FgAction {
             };
         }
 
-        vStat = checkUser ? await this.validateUser() : OKVAL;
-        if (!vStat.ok) {
-            return {
-                code: AUTH_FAILED_SC,
-                payload: vStat.details,
-            };
-        }
-
         vStat = checkEvent ? await this.validateEventParameters() : OKVAL;
         if (!vStat.ok) {
             return {
                 code: ACCESS_DENIED_SC,
+                payload: vStat.details,
+            };
+        }
+
+        vStat = checkUser ? await this.validateUser() : OKVAL;
+        if (!vStat.ok) {
+            return {
+                code: AUTH_FAILED_SC,
                 payload: vStat.details,
             };
         }

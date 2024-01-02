@@ -112,9 +112,9 @@ class FgAction {
         const pdoverride = appConfig.getPdoverride();
         const edgeWorkerEndDate = appConfig.getEdgeWorkerEndDate();
         if (!pdoverride && edgeWorkerEndDate) {
-            const checkDate = edgeWorkerEndDate.setDate(edgeWorkerEndDate.getDate() + 1);
+            edgeWorkerEndDate.setDate(edgeWorkerEndDate.getDate() + 1);
             let stepMsg;
-            if (new Date() <= checkDate) {
+            if (new Date() <= edgeWorkerEndDate) {
                 stepMsg = 'Access Denied! Event in progress or concluded within 24 hours.';
                 await this.fgStatus?.updateStatusToStateLib({
                     status: FgStatus.PROJECT_STATUS.FAILED,

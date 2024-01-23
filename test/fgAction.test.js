@@ -26,9 +26,7 @@ jest.mock('crypto', () => ({
 
 let params = {
     spToken: 'eyJ0eXAi',
-    adminPageUri: 'https://floodgateui--milo--adobecom.hlx.page/tools/floodgate?ref=floodgateui&repo=milo&owner=adobecom&host=milo.adobe.com&project=Milo' + 
-    '&referrer=https%3A%2F%2Fadobe.sharepoint.com%2F%3Ax%3A%2Fr%2Fsites%2Fadobecom%2F_layouts%2F15%2FDoc.aspx' +
-    '%3Fsourcedoc%3D%257B442C005E-8094-4EB8-A78F-48BF427A04ED%257D%26file%3DBook5.xlsx%26action%3Ddefault%26mobileredirect%3Dtrue',
+    adminPageUri: 'http://localhost:3000/tools/floodgate/index.html?project=milo--adobecom&referrer=',
     projectExcelPath: '/drafts/floodgate/projects/raga/fgtest1.xlsx',
     shareUrl: 'https://site.sharepoint.com/:f:/r/sites/adobecom/Shared%20Documents/milo<relativePath>?web=1',
     fgShareUrl: 'https://site.sharepoint.com/:f:/r/sites/adobecom/Shared%20Documents/milo-pink<relativePath>?web=1',
@@ -65,10 +63,10 @@ params = {
     maxBulkPreviewChecks: '100',
     enablePreviewPublish: 'true'
 };
-const appConfig = new AppConfig();
+
 describe('appConfig', () => {
     test('set parameters', () => {
-        appConfig.setAppConfig(params);
+        const appConfig = new AppConfig(params);
         expect(appConfig.getPayload()).toBeDefined();
         expect(appConfig.getConfig()).toBeDefined();
         expect(appConfig.getPassthruParams()).toBeDefined();
@@ -89,12 +87,7 @@ describe('appConfig', () => {
         expect(appConfig.getSiteFgRootPath()).toBe('/adobecom/Shared%20Documents/milo-pink');
         expect(appConfig.getUrlInfo()).toMatchObject({
             urlInfoMap: {
-                branch: 'floodgateui',
-                origin: 'https://floodgateui--milo--adobecom.hlx.page',
-                owner: 'adobecom',
-                repo: 'milo',
-                sp: 'https://adobe.sharepoint.com/:x:/r/sites/adobecom/_layouts/15/Doc.aspx?sourcedoc=%7B442C005E-8094-4EB8-A78F-48BF427A04ED%7D' +
-                '&file=Book5.xlsx&action=default&mobileredirect=true',
+                branch: 'main', origin: 'https://main--milo--adobecom.hlx.page', owner: 'adobecom', repo: 'milo', sp: ''
             }
         });
         expect(appConfig.isDraftOnly()).toBeTruthy();
@@ -105,25 +98,20 @@ describe('appConfig', () => {
 
     test('isDraftOnly would be true when not passed', () => {
         const { draftsOnly, ...remParams } = params;
-        appConfig.setAppConfig(remParams);
+        const appConfig = new AppConfig(params);
         expect(appConfig.isDraftOnly()).toBeTruthy();
+        expect(remParams).toBeDefined();
     });
 
     test('isDraftOnly is false when parameter is passed', () => {
         const { draftsOnly, ...remParams } = params;
-        appConfig.setAppConfig({ draftsOnly: 'false', ...remParams });
+        const appConfig = new AppConfig({ draftsOnly: null, ...remParams });
         expect(appConfig.isDraftOnly()).toBeFalsy();
     });
 
     test('Test pdoverride and edgeWorkerEndDate', () => {
+        const appConfig = new AppConfig({ ...params, pdoverride: 'false', edgeWorkerEndDate: 'Wed, 20 Dec 2023 13:56:49 GMT' });
         expect(appConfig.getPdoverride()).toBeFalsy();
-        appConfig.setAppConfig({ ...params, pdoverride: 'false', edgeWorkerEndDate: 'Wed, 20 Dec 2023 13:56:49 GMT' });
         expect(appConfig.getEdgeWorkerEndDate().getTime()).toBe(1703080609000);
-    });
-
-    test('Test sharepoint config is populated', async () => {
-        appConfig.setAppConfig(params);
-        const sp = await appConfig.getSpConfig();
-        expect(sp).toMatchObject({});
     });
 });

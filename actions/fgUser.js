@@ -17,17 +17,18 @@
 
 const fetch = require('node-fetch');
 const { getAioLogger } = require('./utils');
-const appConfig = require('./appConfig');
-const sharepoint = require('./sharepoint');
-const sharepointAuth = require('./sharepointAuth');
+const Sharepoint = require('./sharepoint');
 
 const logger = getAioLogger();
 class FgUser {
     userGroupIds = [];
 
-    constructor({ at }) {
+    constructor({ at, appConfig }) {
         this.at = at;
-        this.userDetails = sharepointAuth.getUserDetails(at);
+        this.appConfig = appConfig;
+        this.sharepoint = new Sharepoint(this.appConfig);
+        this.sharepointAuth = this.sharepoint.getSharepointAuth();
+        this.userDetails = this.sharepointAuth.getUserDetails(at);
         this.userOid = this.userDetails?.oid;
     }
 
@@ -37,10 +38,10 @@ class FgUser {
 
     async isInGroups(grpIds) {
         if (!grpIds?.length) return false;
-        const appAt = await sharepointAuth.getAccessToken();
+        const appAt = await this.sharepointAuth.getAccessToken();
         // eslint-disable-next-line max-len
         const numGrps = grpIds.length;
-        let url = appConfig.getConfig().groupCheckUrl || '';
+        let url = this.appConfig.getConfig().groupCheckUrl || '';
         url += `&$filter=id eq '${this.userOid}'`;
         let found = false;
         for (let c = 0; c < numGrps; c += 1) {
@@ -67,22 +68,22 @@ class FgUser {
     }
 
     async isInAdminGroup() {
-        const grpIds = appConfig.getConfig().fgAdminGroups;
+        const grpIds = this.appConfig.getConfig().fgAdminGroups;
         return !grpIds?.length ? false : this.isInGroups(grpIds);
     }
 
     async isInUserGroup() {
-        const grpIds = appConfig.getConfig().fgUserGroups;
+        const grpIds = this.appConfig.getConfig().fgUserGroups;
         return !grpIds?.length ? false : this.isInGroups(grpIds);
     }
 
     async isUser() {
-        const dr = await sharepoint.getDriveRoot(this.at);
+        const dr = await this.sharepoint.getDriveRoot(this.at);
         return dr ? this.isInUserGroup() : false;
     }
 
     async isAdmin() {
-        const dr = await sharepoint.getDriveRoot(this.at);
+        const dr = await this.sharepoint.getDriveRoot(this.at);
         return dr ? this.isInAdminGroup() : false;
     }
 }

@@ -19,7 +19,7 @@
 const {
     errorResponse, getAioLogger, getInstanceKey, PROMOTE_ACTION
 } = require('../utils');
-const appConfig = require('../appConfig');
+const AppConfig = require('../appConfig');
 const FgUser = require('../fgUser');
 const BatchManager = require('../batchManager');
 
@@ -32,9 +32,6 @@ const GEN_ERROR_SC = 500;
  * Returns promote status. The details of the status needed are passed a arguments.
  * Sample Input
  *  {
- *      "promoteStatus": true,
- *      "batchFiles": 2,
- *      "batchResults": 2,
  *      "promoteResults": true,
  *      "fgShareUrl": "https://adobe.sharepoint.com/:f:/r/sites/adobecom/Shared%20Documents/milo-pink<relativePath>?web=1",
  *      "spToken": ""
@@ -69,22 +66,22 @@ const GEN_ERROR_SC = 500;
 async function main(args) {
     const payload = {};
     try {
-        appConfig.setAppConfig(args);
+        const appConfig = new AppConfig(args);
         const batchNumber = args.batchFiles || args.batchResults;
 
         // Validations
         const fgUser = new FgUser({ at: args.spToken });
         if (!args.fgShareUrl) {
-            return exitAction(errorResponse(BAD_REQUEST_SC, 'Mising required fgShareUrl parameter'));
+            return errorResponse(BAD_REQUEST_SC, 'Mising required fgShareUrl parameter');
         }
 
         if (!await fgUser.isUser()) {
-            return exitAction(errorResponse(AUTH_FAILED_SC, 'Authentication failed. Please refresh page and try again.'));
+            return errorResponse(AUTH_FAILED_SC, 'Authentication failed. Please refresh page and try again.');
         }
 
         // Starts
         const siteFgRootPath = appConfig.getSiteFgRootPath();
-        const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }) });
+        const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }), batchConfig: appConfig.getBatchConfig() });
         await batchManager.init({ batchNumber });
         const currentBatch = batchNumber ? await batchManager.getCurrentBatch() : null;
 
@@ -113,17 +110,12 @@ async function main(args) {
         }
     } catch (err) {
         logger.error(err);
-        return exitAction(errorResponse(GEN_ERROR_SC, `Something went wrong: ${err}`));
+        return errorResponse(GEN_ERROR_SC, `Something went wrong: ${err}`);
     }
 
-    return exitAction({
+    return {
         ...payload
-    });
-}
-
-function exitAction(resp) {
-    appConfig.removePayload();
-    return resp;
+    };
 }
 
 exports.main = main;

@@ -16,7 +16,6 @@
 ************************************************************************* */
 
 const fetch = require('node-fetch');
-const appConfig = require('./appConfig');
 const { getAioLogger, delay } = require('./utils');
 
 const MAX_RETRIES = 5;
@@ -30,18 +29,22 @@ const LIVE = 'live';
 const logger = getAioLogger();
 
 class HelixUtils {
+    constructor(appConfig) {
+        this.appConfig = appConfig;
+    }
+
     getOperations() {
         return { PREVIEW, LIVE };
     }
 
     getRepo(isFloodgate = false, fgColor = 'pink') {
-        const urlInfo = appConfig.getUrlInfo();
+        const urlInfo = this.appConfig.getUrlInfo();
         return isFloodgate ? `${urlInfo.getRepo()}-${fgColor}` : urlInfo.getRepo();
     }
 
     getAdminApiKey(isFloodgate = false, fgColor = 'pink') {
         const repo = this.getRepo(isFloodgate, fgColor);
-        const { helixAdminApiKeys = {} } = appConfig.getConfig();
+        const { helixAdminApiKeys = {} } = this.appConfig.getConfig();
         return helixAdminApiKeys[repo];
     }
 
@@ -53,7 +56,7 @@ class HelixUtils {
      */
     canBulkPreviewPublish(isFloodgate = false, fgColor = 'pink') {
         const repo = this.getRepo(isFloodgate, fgColor);
-        const { enablePreviewPublish } = appConfig.getConfig();
+        const { enablePreviewPublish } = this.appConfig.getConfig();
         const repoRegexArr = enablePreviewPublish.map((ps) => new RegExp(`^${ps}$`));
         return true && repoRegexArr.find((rx) => rx.test(repo));
     }
@@ -74,7 +77,7 @@ class HelixUtils {
         }
         try {
             const repo = this.getRepo(isFloodgate, fgColor);
-            const urlInfo = appConfig.getUrlInfo();
+            const urlInfo = this.appConfig.getUrlInfo();
             const bulkUrl = `https://admin.hlx.page/${operation}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
             const options = {
                 method: 'POST',
@@ -127,19 +130,19 @@ class HelixUtils {
     async bulkJobStatus(jobName, operation, repo, bulkPreviewStatus = {}, retryAttempt = 1) {
         logger.info(`Checking job status of ${jobName} for ${operation}`);
         try {
-            const { helixAdminApiKeys } = appConfig.getConfig();
+            const { helixAdminApiKeys } = this.appConfig.getConfig();
             const options = {};
             if (helixAdminApiKeys && helixAdminApiKeys[repo]) {
                 options.headers = new fetch.Headers();
                 options.headers.append('Authorization', `token ${helixAdminApiKeys[repo]}`);
             }
             const bulkOperation = operation === LIVE ? PUBLISH : operation;
-            const urlInfo = appConfig.getUrlInfo();
+            const urlInfo = this.appConfig.getUrlInfo();
             const statusUrl = `https://admin.hlx.page/job/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/${bulkOperation}/${jobName}/details`;
             const response = await fetch(statusUrl, options);
             logger.info(`Status call response ${response.ok} with status ${response.status} `);
-            if (!response.ok && retryAttempt <= appConfig.getConfig().maxBulkPreviewChecks) {
-                await delay(appConfig.getConfig().bulkPreviewCheckInterval * 1000);
+            if (!response.ok && retryAttempt <= this.appConfig.getConfig().maxBulkPreviewChecks) {
+                await delay(this.appConfig.getConfig().bulkPreviewCheckInterval * 1000);
                 await this.bulkJobStatus(jobName, operation, repo, bulkPreviewStatus, retryAttempt + 1);
             } else if (response.ok) {
                 const jobStatusJson = await response.json();
@@ -148,8 +151,8 @@ class HelixUtils {
                     bulkPreviewStatus[rs.path] = { success: JOB_STATUS_CODES.includes(rs.status) };
                 });
                 if (jobStatusJson.state !== 'stopped' && !jobStatusJson.cancelled &&
-                    retryAttempt <= appConfig.getConfig().maxBulkPreviewChecks) {
-                    await delay(appConfig.getConfig().bulkPreviewCheckInterval * 1000);
+                    retryAttempt <= this.appConfig.getConfig().maxBulkPreviewChecks) {
+                    await delay(this.appConfig.getConfig().bulkPreviewCheckInterval * 1000);
                     await this.bulkJobStatus(jobName, operation, repo, bulkPreviewStatus, retryAttempt + 1);
                 }
             }
@@ -160,4 +163,4 @@ class HelixUtils {
     }
 }
 
-module.exports = new HelixUtils();
+module.exports = HelixUtils;

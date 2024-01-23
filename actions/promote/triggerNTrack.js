@@ -17,14 +17,14 @@
 ************************************************************************* */
 
 const openwhisk = require('openwhisk');
-const { updateExcelTable } = require('../sharepoint');
+const Sharepoint = require('../sharepoint');
 const {
     toUTCStr, getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress
 } = require('../utils');
-const appConfig = require('../appConfig');
+const AppConfig = require('../appConfig');
 const FgStatus = require('../fgStatus');
 const BatchManager = require('../batchManager');
-const FgAction = require('../FgAction');
+const FgAction = require('../fgAction');
 
 const logger = getAioLogger();
 
@@ -40,19 +40,20 @@ async function main(params) {
     };
     const ow = openwhisk();
 
-    appConfig.setAppConfig(params);
-    const batchManager = new BatchManager({ key: PROMOTE_ACTION });
+    let appConfig = new AppConfig(params);
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, batchConfig: appConfig.getBatchConfig() });
     await batchManager.init();
     // Read instance_info.json
     const instanceContent = await batchManager.getInstanceData();
     if (!instanceContent || !instanceContent.dtls) {
-        return exitAction({ body: 'None to run!' });
+        return { body: 'None to run!' };
     }
 
     const { batchesInfo } = instanceContent.dtls;
 
     // Initialize action
-    const fgAction = new FgAction(PROMOTE_ACTION, { ...params, ...instanceContent.dtls });
+    appConfig = new AppConfig({ ...params, ...instanceContent.dtls });
+    const fgAction = new FgAction(PROMOTE_ACTION, appConfig);
     fgAction.init({ ow, skipUserDetails: true });
     const { fgStatus } = fgAction.getActionParams();
     const { payload } = appConfig.getConfig();
@@ -60,7 +61,7 @@ async function main(params) {
     try {
         const vStat = await fgAction.validateAction(valParams);
         if (vStat && vStat.code !== 200) {
-            return exitAction(vStat);
+            return vStat;
         }
 
         // Checks how many batches are in progress and the total batch count
@@ -81,10 +82,11 @@ async function main(params) {
         await batchManager.writeToInstanceFile(instanceContent);
 
         // Collect status and mark as complete
+        const sharepoint = new Sharepoint(appConfig);
         if (allCopyDone) {
             const allDone = await checkPostPromoteStatus(payload.fgRootFolder, batchesInfo);
             if (allDone) {
-                await completePromote(payload.projectExcelPath, batchesInfo, batchManager, fgStatus);
+                await completePromote(payload.projectExcelPath, batchesInfo, batchManager, fgStatus, { sharepoint });
             }
             await batchManager.writeToInstanceFile(instanceContent);
         } else if (!anyInProg) {
@@ -118,9 +120,9 @@ async function main(params) {
             logger.info('Error while updatnig failed status');
         }
     }
-    return exitAction({
+    return {
         body: respPayload,
-    });
+    };
 }
 
 /**
@@ -240,8 +242,9 @@ async function triggerPromoteWorkerAction(ow, params, fgStatus) {
  * @param {*} actDtls activation details like id
  * @param {*} batchManager BatchManager to get batch details like path
  * @param {*} fgStatus Floodgate status instance to update state
+ * @param {*} options Additional parameters like sharepoint for SP related operations
  */
-async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus) {
+async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus, { sharepoint }) {
     let batchNumber;
     let results;
     const failedPromotes = [];
@@ -283,15 +286,11 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
 
     const { startTime: startPromote, endTime: endPromote } = fgStatus.getStartEndTime();
     const excelValues = [['PROMOTE', toUTCStr(startPromote), toUTCStr(endPromote), failedPromotes.join('\n'), failedPreviews.join('\n'), failedPublishes.join('\n')]];
-    await updateExcelTable(projectExcelPath, 'PROMOTE_STATUS', excelValues);
+    await sharepoint.updateExcelTable(projectExcelPath, 'PROMOTE_STATUS', excelValues);
     logger.info('Project excel file updated with promote status.');
 
     await batchManager.markComplete(fgErrors ? { failedPromotes, failedPreviews, failedPublishes } : null);
     logger.info('Marked complete in batch manager.');
 }
 
-function exitAction(resp) {
-    appConfig.removePayload();
-    return resp;
-}
 exports.main = main;

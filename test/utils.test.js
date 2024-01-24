@@ -133,3 +133,22 @@ describe('strToBool', () => {
         expect(utils.strToBool(undefined)).not.toBeTruthy();
     });
 });
+
+describe('getDocPathFromUrl', () => {
+    test('Check for a set of true and false inputs', () => {
+        expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/samplepage'))
+            .toEqual('/drafts/test/samplepage.docx');
+        expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/'))
+            .toEqual('/drafts/test/index.docx');
+        expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/samplesheet.json'))
+            .toEqual('/drafts/test/samplesheet.xlsx');
+        expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/samplehtmlpage.html'))
+            .toEqual('/drafts/test/samplehtmlpage.docx');
+        expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/samplepdf.pdf'))
+            .toEqual('/drafts/test/samplepdf.pdf');
+        expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/samplevimg.svg'))
+            .toEqual('/drafts/test/samplevimg.svg');
+        expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/axsizzle-marquee.mp4'))
+            .toEqual('/drafts/test/axsizzle-marquee.mp4');
+    });
+});

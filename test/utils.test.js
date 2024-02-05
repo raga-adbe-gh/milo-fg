@@ -150,5 +150,7 @@ describe('getDocPathFromUrl', () => {
             .toEqual('/drafts/test/samplevimg.svg');
         expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/axsizzle-marquee.mp4'))
             .toEqual('/drafts/test/axsizzle-marquee.mp4');
+        expect(utils.getDocPathFromUrl('https://main--cc-pink--adobecom.hlx.page/drafts/test/axsizzle-marquee.mp4#_autoplay'))
+            .toEqual('/drafts/test/axsizzle-marquee.mp4');
     });
 });

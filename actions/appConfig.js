@@ -37,7 +37,10 @@ class AppConfig {
         this.removeOldPayload();
 
         // These are payload parameters
-        payload.spToken = params.spToken;
+        // eslint-disable-next-line no-underscore-dangle
+        const headers = params.__ow_headers;
+        // eslint-disable-next-line no-underscore-dangle
+        payload.spToken = headers?.['user-token'] || params.spToken;
         payload.adminPageUri = params.adminPageUri;
         payload.projectExcelPath = params.projectExcelPath;
         payload.shareUrl = params.shareUrl;
@@ -50,7 +53,7 @@ class AppConfig {
         payload.fgColor = params.fgColor || 'pink';
         payload.draftsOnly = params.draftsOnly;
         payload.pdoverride = params.pdoverride;
-        payload.edgeWorkerEndDate = params.edgeWorkerEndDate;
+        payload.enableActionFlag = params.enableActionFlag;
 
         // These are from configs and not activation related
         this.configMap.fgSite = params.fgSite;
@@ -233,13 +236,12 @@ class AppConfig {
         return strToBool(this.getPayload().pdoverride);
     }
 
-    getEdgeWorkerEndDate() {
-        try {
-            const dtStr = this.getPayload().edgeWorkerEndDate;
-            return dtStr ? new Date(this.getPayload().edgeWorkerEndDate) : null;
-        } catch (err) {
-            return null;
-        }
+    getEnableActionFlag() {
+        return strToBool(this.getPayload().enableActionFlag);
+    }
+
+    getUserToken() {
+        return this.getPayload().spToken;
     }
 }
 

@@ -97,7 +97,7 @@ describe('appConfig', () => {
         expect(appConfig.isDraftOnly()).toBeTruthy();
         expect(appConfig.getDoPublish()).not.toBeTruthy();
         expect(!!appConfig.getPdoverride()).toBeFalsy();
-        expect(!!appConfig.getEdgeWorkerEndDate()).toBeFalsy();
+        expect(!!appConfig.getEnableActionFlag()).toBeFalsy();
 
         appConfig.removePayload();
         expect(() => appConfig.getPayload()).toThrow();
@@ -117,10 +117,22 @@ describe('appConfig', () => {
         appConfig.removePayload();
     });
 
-    test('Test pdoverride and edgeWorkerEndDate', () => {
-        appConfig.setAppConfig({ ...params, pdoverride: 'false', edgeWorkerEndDate: 'Wed, 20 Dec 2023 13:56:49 GMT' });
+    test('Test pdoverride and enableActionFlag', () => {
+        appConfig.setAppConfig({ ...params, pdoverride: 'false', enableActionFlag: 'true' });
         expect(appConfig.getPdoverride()).toBeFalsy();
-        expect(appConfig.getEdgeWorkerEndDate().getTime()).toBe(1703080609000);
+        expect(appConfig.getEnableActionFlag()).toBeTruthy();
+        appConfig.removePayload();
+    });
+
+    test('test sptoken in param', () => {
+        appConfig.setAppConfig(params);
+        expect(appConfig.getPayload().spToken).toBe(params.spToken);
+        appConfig.removePayload();
+    });
+
+    test('test sptoken in header', () => {
+        appConfig.setAppConfig({ ...params, __ow_headers: { 'user-token': 'usertoken' } });
+        expect(appConfig.getPayload().spToken).toBe('usertoken');
         appConfig.removePayload();
     });
 });

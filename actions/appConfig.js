@@ -39,7 +39,6 @@ class AppConfig {
         // These are payload parameters
         // eslint-disable-next-line no-underscore-dangle
         const headers = params.__ow_headers;
-        // eslint-disable-next-line no-underscore-dangle
         payload.spToken = headers?.['user-token'] || params.spToken;
         payload.adminPageUri = params.adminPageUri;
         payload.projectExcelPath = params.projectExcelPath;

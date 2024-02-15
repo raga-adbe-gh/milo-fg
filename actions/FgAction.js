@@ -15,7 +15,7 @@
  * from Adobe.
  ************************************************************************* */
 const openwhisk = require('openwhisk');
-const { getAioLogger, actInProgress } = require('./utils');
+const { getAioLogger, actInProgress, DELETE_ACTION, PROMOTE_ACTION } = require('./utils');
 const appConfig = require('./appConfig');
 const FgUser = require('./fgUser');
 const FgStatus = require('./fgStatus');
@@ -102,6 +102,11 @@ class FgAction {
         return resp;
     }
 
+    isActionEnabled() {
+        return (this.action === PROMOTE_ACTION && appConfig.getEnablePromote()) ||
+            (this.action === DELETE_ACTION && appConfig.getEnableDelete());
+    }
+
     /**
      * Validates event data is gone past over a day for allowing promote or delete
      * @returns respons object with ok as true or false and state details
@@ -109,9 +114,7 @@ class FgAction {
     async validateEventParameters() {
         const resp = { ok: false, message: 'Event paramters validation.' };
         const storeValue = await this.fgStatus.getStatusFromStateLib() || {};
-        const pdoverride = appConfig.getPdoverride();
-        const enableActionFlag = appConfig.getEnableActionFlag();
-        if (!pdoverride && !enableActionFlag) {
+        if (!this.isActionEnabled()) {
             const stepMsg = 'Access Denied! Feature is disabled.';
             await this.fgStatus?.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.FAILED,

@@ -51,8 +51,8 @@ class AppConfig {
         payload.driveId = params.driveId;
         payload.fgColor = params.fgColor || 'pink';
         payload.draftsOnly = params.draftsOnly;
-        payload.pdoverride = params.pdoverride;
-        payload.enableActionFlag = params.enableActionFlag;
+        payload.enablePromote = params.enablePromote;
+        payload.enableDelete = params.enableDelete;
 
         // These are from configs and not activation related
         this.configMap.fgSite = params.fgSite;
@@ -231,12 +231,12 @@ class AppConfig {
         return strToBool(this.getPayload().doPublish);
     }
 
-    getPdoverride() {
-        return strToBool(this.getPayload().pdoverride);
+    getEnablePromote() {
+        return strToBool(this.getPayload().enablePromote);
     }
 
-    getEnableActionFlag() {
-        return strToBool(this.getPayload().enableActionFlag);
+    getEnableDelete() {
+        return strToBool(this.getPayload().enableDelete);
     }
 
     getUserToken() {

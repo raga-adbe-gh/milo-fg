@@ -96,8 +96,8 @@ describe('appConfig', () => {
         });
         expect(appConfig.isDraftOnly()).toBeTruthy();
         expect(appConfig.getDoPublish()).not.toBeTruthy();
-        expect(!!appConfig.getPdoverride()).toBeFalsy();
-        expect(!!appConfig.getEnableActionFlag()).toBeFalsy();
+        expect(!!appConfig.getEnablePromote()).toBeFalsy();
+        expect(!!appConfig.getEnableDelete()).toBeFalsy();
 
         appConfig.removePayload();
         expect(() => appConfig.getPayload()).toThrow();
@@ -117,10 +117,24 @@ describe('appConfig', () => {
         appConfig.removePayload();
     });
 
-    test('Test pdoverride and enableActionFlag', () => {
-        appConfig.setAppConfig({ ...params, pdoverride: 'false', enableActionFlag: 'true' });
-        expect(appConfig.getPdoverride()).toBeFalsy();
-        expect(appConfig.getEnableActionFlag()).toBeTruthy();
+    test('Test enable delete action flags', () => {
+        appConfig.setAppConfig({ ...params, enableDelete: 'true' });
+        expect(appConfig.getEnablePromote()).toBeFalsy();
+        expect(appConfig.getEnableDelete()).toBeTruthy();
+        appConfig.removePayload();
+    });
+
+    test('Test enable promote action flags', () => {
+        appConfig.setAppConfig({ ...params, enablePromote: 'true' });
+        expect(appConfig.getEnablePromote()).toBeTruthy();
+        expect(appConfig.getEnableDelete()).toBeFalsy();
+        appConfig.removePayload();
+    });
+
+    test('Test enable delete and promote action flags', () => {
+        appConfig.setAppConfig({ ...params, enableDelete: true, enablePromote: 'true' });
+        expect(appConfig.getEnablePromote()).toBeTruthy();
+        expect(appConfig.getEnableDelete()).toBeTruthy();
         appConfig.removePayload();
     });
 

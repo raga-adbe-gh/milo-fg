@@ -17,7 +17,6 @@
  ************************************************************************* */
 
 const { getAioLogger } = require('./utils');
-const appConfig = require('./appConfig');
 
 const logger = getAioLogger();
 
@@ -41,7 +40,7 @@ class Batch {
         this.filesSdk = params.filesSdk;
         this.instancePath = params.instancePath;
         this.batchNumber = params?.batchNumber || 1;
-        this.maxFilesPerBatch = appConfig.getBatchConfig().maxFilesPerBatch;
+        this.maxFilesPerBatch = params?.maxFilesPerBatch || 200;
         this.batchPath = `${this.instancePath}/${FOLDER_PREFIX}_${this.batchNumber}`;
         this.batchInfoFile = `${this.batchPath}/${BATCH_INFO_FILE}`;
         this.resultsFile = `${this.batchPath}/${RESULTS_FILE}`;
@@ -85,7 +84,6 @@ class Batch {
         if (!this.filesSdk || !this.batchFiles?.length) return;
         const dataStr = JSON.stringify(this.batchFiles);
         await this.filesSdk.write(this.batchInfoFile, dataStr);
-        this.batchInfoFile = [];
     }
 
     async getFiles() {

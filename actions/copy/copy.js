@@ -17,12 +17,10 @@
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 const openwhisk = require('openwhisk');
-const {
-    getAioLogger, COPY_ACTION
-} = require('../utils');
+const { getAioLogger, COPY_ACTION } = require('../utils');
 const FgStatus = require('../fgStatus');
-const FgAction = require('../FgAction');
-const appConfig = require('../appConfig');
+const FgAction = require('../fgAction');
+const AppConfig = require('../appConfig');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
@@ -37,7 +35,7 @@ async function main(args) {
     };
     const ow = openwhisk();
     // Initialize action
-    const fgAction = new FgAction(COPY_ACTION, args);
+    const fgAction = new FgAction(COPY_ACTION, new AppConfig(args));
     fgAction.init({ ow });
     const { fgStatus } = fgAction.getActionParams();
 
@@ -45,7 +43,7 @@ async function main(args) {
         // Validations
         const vStat = await fgAction.validateAction(valParams);
         if (vStat && vStat.code !== 200) {
-            return exitAction(vStat);
+            return vStat;
         }
 
         fgAction.logStart();
@@ -54,7 +52,7 @@ async function main(args) {
             status: FgStatus.PROJECT_STATUS.STARTED,
             statusMessage: 'Triggering copy action'
         });
-        return exitAction(ow.actions.invoke({
+        return ow.actions.invoke({
             name: 'milo-fg/copy-worker',
             blocking: false, // this is the flag that instructs to execute the worker asynchronous
             result: false,
@@ -80,7 +78,7 @@ async function main(args) {
                 code: 500,
                 payload: respPayload
             };
-        }));
+        });
     } catch (err) {
         respPayload = fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.FAILED,
@@ -89,15 +87,10 @@ async function main(args) {
         logger.error(err);
     }
 
-    return exitAction({
+    return {
         code: 500,
         payload: respPayload,
-    });
-}
-
-function exitAction(resp) {
-    appConfig.removePayload();
-    return resp;
+    };
 }
 
 exports.main = main;

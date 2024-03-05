@@ -19,8 +19,8 @@
 const openwhisk = require('openwhisk');
 const filesLib = require('@adobe/aio-lib-files');
 const { getAioLogger, PROMOTE_ACTION } = require('../utils');
-const appConfig = require('../appConfig');
-const sharepointAuth = require('../sharepointAuth');
+const AppConfig = require('../appConfig');
+const SharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
 const FgUser = require('../fgUser');
 
@@ -40,10 +40,10 @@ async function main(args) {
             clearStateStore: args.clearStateStore,
             tracker: args.tracker,
         };
-        appConfig.setAppConfig(args);
+        const appConfig = new AppConfig(args);
         const filesSdk = await filesLib.init();
-        const fgUser = new FgUser({ at: args.spToken });
-        const maintAction = new MaintAction();
+        const fgUser = new FgUser({ at: args.spToken, appConfig });
+        const maintAction = new MaintAction(appConfig);
         maintAction.setFilesSdk(filesSdk);
 
         // Admin function
@@ -55,11 +55,11 @@ async function main(args) {
         if (!(payload.permissions.isAdmin || payload.permissions.isUser)) {
             payload.error = 'Could not determine the user.';
             logger.error(payload);
-            return exitAction({
+            return {
                 payload,
-            });
+            };
         }
-        const userDetails = sharepointAuth.getUserDetails(args.spToken);
+        const userDetails = new SharepointAuth(appConfig.getMsalConfig()).getUserDetails(args.spToken);
 
         logger.info(`maint action ${JSON.stringify(params)} by ${JSON.stringify(userDetails)}`);
         if (params.listFilePath !== undefined) payload.fileList = await maintAction.listFiles(params.listFilePath);
@@ -73,15 +73,19 @@ async function main(args) {
         payload.error = err;
     }
 
-    return exitAction({
+    return {
         payload,
-    });
+    };
 }
 
 class MaintAction {
+    constructor(appConfig) {
+        this.appConfig = appConfig;
+    }
+
     setFilesSdk(filesSdk) {
         this.filesSdk = filesSdk;
-        this.filesSdkPath = appConfig.getBatchConfig().batchFilesPath;
+        this.filesSdkPath = this.appConfig.getBatchConfig().batchFilesPath;
         return this;
     }
 
@@ -148,11 +152,6 @@ class MaintAction {
         }
         return 'No Action';
     }
-}
-
-function exitAction(resp) {
-    appConfig.removePayload();
-    return resp;
 }
 
 exports.main = main;

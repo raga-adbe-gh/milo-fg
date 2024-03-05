@@ -10,6 +10,7 @@
     "@adobe/exc-app": "^0.2.17",
     "@azure/msal-node": "^1.17.2",
     "cloudevents": "^4.0.2",
+    "fetch-mock-jest": "^1.5.1",
     "node-fetch": "^2.6.0",
     "openwhisk": "^3.21.7",
     "regenerator-runtime": "^0.13.5",

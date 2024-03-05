@@ -18,7 +18,6 @@
 const stateLib = require('@adobe/aio-lib-state');
 const crypto = require('crypto');
 const { getAioLogger, COPY_ACTION, DELETE_ACTION } = require('./utils');
-const appConfig = require('./appConfig');
 
 const FG_KEY = 'FLOODGATE';
 
@@ -74,8 +73,10 @@ class FgStatus {
         action,
         statusKey,
         keySuffix,
+        appConfig,
         userDetails
     }) {
+        this.appConfig = appConfig;
         this.lastTriggeredBy = userDetails?.oid;
         this.action = action || '';
         this.storeKey = statusKey || this.generateStoreKey(keySuffix) || FG_KEY;
@@ -83,8 +84,8 @@ class FgStatus {
     }
 
     generateStoreKey(keySuffix) {
-        const siteFgRootPath = appConfig.getSiteFgRootPath();
-        const { projectExcelPath } = appConfig.getPayload();
+        const siteFgRootPath = this.appConfig.getSiteFgRootPath();
+        const { projectExcelPath } = this.appConfig.getPayload();
         let resp = '';
 
         switch (this.action) {

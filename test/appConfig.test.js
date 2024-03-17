@@ -96,8 +96,8 @@ describe('appConfig', () => {
         });
         expect(appConfig.isDraftOnly()).toBeTruthy();
         expect(appConfig.getDoPublish()).not.toBeTruthy();
-        expect(!!appConfig.getPdoverride()).toBeFalsy();
-        expect(!!appConfig.getEdgeWorkerEndDate()).toBeFalsy();
+        expect(!!appConfig.getEnablePromote()).toBeFalsy();
+        expect(!!appConfig.getEnableDelete()).toBeFalsy();
 
         appConfig.removePayload();
         expect(() => appConfig.getPayload()).toThrow();
@@ -117,10 +117,36 @@ describe('appConfig', () => {
         appConfig.removePayload();
     });
 
-    test('Test pdoverride and edgeWorkerEndDate', () => {
-        appConfig.setAppConfig({ ...params, pdoverride: 'false', edgeWorkerEndDate: 'Wed, 20 Dec 2023 13:56:49 GMT' });
-        expect(appConfig.getPdoverride()).toBeFalsy();
-        expect(appConfig.getEdgeWorkerEndDate().getTime()).toBe(1703080609000);
+    test('Test enable delete action flags', () => {
+        appConfig.setAppConfig({ ...params, enableDelete: 'true' });
+        expect(appConfig.getEnablePromote()).toBeFalsy();
+        expect(appConfig.getEnableDelete()).toBeTruthy();
+        appConfig.removePayload();
+    });
+
+    test('Test enable promote action flags', () => {
+        appConfig.setAppConfig({ ...params, enablePromote: 'true' });
+        expect(appConfig.getEnablePromote()).toBeTruthy();
+        expect(appConfig.getEnableDelete()).toBeFalsy();
+        appConfig.removePayload();
+    });
+
+    test('Test enable delete and promote action flags', () => {
+        appConfig.setAppConfig({ ...params, enableDelete: true, enablePromote: 'true' });
+        expect(appConfig.getEnablePromote()).toBeTruthy();
+        expect(appConfig.getEnableDelete()).toBeTruthy();
+        appConfig.removePayload();
+    });
+
+    test('test sptoken in param', () => {
+        appConfig.setAppConfig(params);
+        expect(appConfig.getPayload().spToken).toBe(params.spToken);
+        appConfig.removePayload();
+    });
+
+    test('test sptoken in header', () => {
+        appConfig.setAppConfig({ ...params, __ow_headers: { 'user-token': 'usertoken' } });
+        expect(appConfig.getPayload().spToken).toBe('usertoken');
         appConfig.removePayload();
     });
 });

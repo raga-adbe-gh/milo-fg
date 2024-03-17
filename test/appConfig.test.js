@@ -99,8 +99,8 @@ describe('appConfig', () => {
         });
         expect(appConfig.isDraftOnly()).toBeTruthy();
         expect(appConfig.getDoPublish()).not.toBeTruthy();
-        expect(!!appConfig.getPdoverride()).toBeFalsy();
-        expect(!!appConfig.getEdgeWorkerEndDate()).toBeFalsy();
+        expect(!!appConfig.getEnablePromote()).toBeFalsy();
+        expect(!!appConfig.getEnableDelete()).toBeFalsy();
     });
 
     test('isDraftOnly would be true when not passed', () => {
@@ -115,15 +115,42 @@ describe('appConfig', () => {
         expect(appConfig.isDraftOnly()).toBeFalsy();
     });
 
-    test('Test pdoverride and edgeWorkerEndDate', () => {
-        expect(appConfig.getPdoverride()).toBeFalsy();
-        appConfig.setAppConfig({ ...params, pdoverride: 'false', edgeWorkerEndDate: 'Wed, 20 Dec 2023 13:56:49 GMT' });
-        expect(appConfig.getEdgeWorkerEndDate().getTime()).toBe(1703080609000);
-    });
-
     test('Test sharepoint config is populated', async () => {
         appConfig.setAppConfig(params);
         const sp = await appConfig.getSpConfig();
         expect(sp).toMatchObject({});
+    });
+
+    test('Test enable delete action flags', () => {
+        appConfig.setAppConfig({ ...params, enableDelete: 'true' });
+        expect(appConfig.getEnablePromote()).toBeFalsy();
+        expect(appConfig.getEnableDelete()).toBeTruthy();
+        appConfig.removePayload();
+    });
+
+    test('Test enable promote action flags', () => {
+        appConfig.setAppConfig({ ...params, enablePromote: 'true' });
+        expect(appConfig.getEnablePromote()).toBeTruthy();
+        expect(appConfig.getEnableDelete()).toBeFalsy();
+        appConfig.removePayload();
+    });
+
+    test('Test enable delete and promote action flags', () => {
+        appConfig.setAppConfig({ ...params, enableDelete: true, enablePromote: 'true' });
+        expect(appConfig.getEnablePromote()).toBeTruthy();
+        expect(appConfig.getEnableDelete()).toBeTruthy();
+        appConfig.removePayload();
+    });
+
+    test('test sptoken in param', () => {
+        appConfig.setAppConfig(params);
+        expect(appConfig.getPayload().spToken).toBe(params.spToken);
+        appConfig.removePayload();
+    });
+
+    test('test sptoken in header', () => {
+        appConfig.setAppConfig({ ...params, __ow_headers: { 'user-token': 'usertoken' } });
+        expect(appConfig.getPayload().spToken).toBe('usertoken');
+        appConfig.removePayload();
     });
 });

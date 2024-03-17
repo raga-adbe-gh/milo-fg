@@ -69,7 +69,7 @@ application:
               LOG_LEVEL: debug
             limits:
               timeout: 1900000
-              memory: 1024              
+              memory: 1024
           promote-worker:
             function: actions/promote/worker.js
             web: 'no'
@@ -114,13 +114,13 @@ application:
             web: 'yes'
             runtime: nodejs:16
             inputs:
-              LOG_LEVEL: debug              
+              LOG_LEVEL: debug
             limits:
               timeout: 600000
         triggers:
           everyMin:
             feed: /whisk.system/alarms/interval
-            inputs: 
+            inputs:
               minutes: 1
         rules:
           everyMinRule:

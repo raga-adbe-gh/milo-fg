@@ -42,7 +42,7 @@ async function main(args) {
         };
         const appConfig = new AppConfig(args);
         const filesSdk = await filesLib.init();
-        const fgUser = new FgUser({ at: args.spToken, appConfig });
+        const fgUser = new FgUser({ appConfig });
         const maintAction = new MaintAction(appConfig);
         maintAction.setFilesSdk(filesSdk);
 

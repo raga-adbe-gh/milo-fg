@@ -70,7 +70,7 @@ async function main(args) {
         const batchNumber = args.batchFiles || args.batchResults;
 
         // Validations
-        const fgUser = new FgUser({ at: args.spToken });
+        const fgUser = new FgUser({ appConfig });
         if (!args.fgShareUrl) {
             return errorResponse(BAD_REQUEST_SC, 'Mising required fgShareUrl parameter');
         }

@@ -78,13 +78,13 @@ async function main(params) {
         });
 
         // Check to see all batches are complete
-        const { anyInProg, allCopyDone } = await checkBatchesInProg(payload.fgRootFolder, batchesInfo, ow);
+        const { anyInProg, allCopyDone } = await checkBatchesInProg(appConfig, batchesInfo, ow);
         await batchManager.writeToInstanceFile(instanceContent);
 
         // Collect status and mark as complete
         const sharepoint = new Sharepoint(appConfig);
         if (allCopyDone) {
-            const allDone = await checkPostPromoteStatus(payload.fgRootFolder, batchesInfo);
+            const allDone = await checkPostPromoteStatus(appConfig, batchesInfo);
             if (allDone) {
                 await completePromote(payload.projectExcelPath, batchesInfo, batchManager, fgStatus, { sharepoint });
             }
@@ -127,12 +127,12 @@ async function main(params) {
 
 /**
  * Checks if activation is in progress by inspecting state and activations
- * @param {*} fgRootFolder Root folder
+ * @param {*} appConfig Payload and configs
  * @param {*} actDtls activation details like activation id
  * @param {*} ow Openwisk api interface
  * @returns flag if any activation is in progress
  */
-async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
+async function checkBatchesInProg(appConfig, actDtls, ow) {
     let fgStatus;
     let batchState;
     let batchInProg = false;
@@ -147,7 +147,8 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
         if (activationId && !copyDone) {
             fgStatus = new FgStatus({
                 action: `${PROMOTE_BATCH}_${batchNumber}`,
-                keySuffix: `Batch_${batchNumber}`
+                keySuffix: `Batch_${batchNumber}`,
+                appConfig
             });
             batchState = await fgStatus.getStatusFromStateLib().then((result) => result?.action);
             // Track and trigger called before the state is marked in progress with activation id
@@ -170,7 +171,7 @@ async function checkBatchesInProg(fgRootFolder, actDtls, ow) {
     return { anyInProg: batchInProg, allCopyDone };
 }
 
-async function checkPostPromoteStatus(fgRootFolder, actDtls) {
+async function checkPostPromoteStatus(appConfig, actDtls) {
     let fgStatus;
     let batchState;
     let batchInProg = false;
@@ -186,7 +187,8 @@ async function checkPostPromoteStatus(fgRootFolder, actDtls) {
         if (activationId && copyDone && !done) {
             fgStatus = new FgStatus({
                 action: `${PROMOTE_BATCH}_${batchNumber}`,
-                keySuffix: `Batch_${batchNumber}`
+                keySuffix: `Batch_${batchNumber}`,
+                appConfig
             });
             batchState = await fgStatus.getStatusFromStateLib().then((result) => result?.action);
             // Track and trigger called before the state is marked in progress with activation id

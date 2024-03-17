@@ -23,12 +23,12 @@ const logger = getAioLogger();
 class FgUser {
     userGroupIds = [];
 
-    constructor({ at, appConfig }) {
-        this.at = at;
+    constructor({ appConfig }) {
         this.appConfig = appConfig;
+        this.at = this.appConfig.getUserToken();
         this.sharepoint = new Sharepoint(this.appConfig);
         this.sharepointAuth = this.sharepoint.getSharepointAuth();
-        this.userDetails = this.sharepointAuth.getUserDetails(at);
+        this.userDetails = this.sharepointAuth.getUserDetails(this.at);
         this.userOid = this.userDetails?.oid;
     }
 

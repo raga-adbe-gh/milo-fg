@@ -126,6 +126,9 @@ class FgPromoteActionHelper {
         const logger = getAioLogger();
         const sharepoint = new Sharepoint(appConfig);
         const sp = await appConfig.getSpConfig();
+        // Pre check Access Token
+        await this.sharepoint.sharepointAuth.getAccessToken();
+        const { promoteCopy } = this;
 
         async function promoteFile(batchItem) {
             const { fileDownloadUrl, filePath } = batchItem.file;
@@ -133,7 +136,7 @@ class FgPromoteActionHelper {
             try {
                 let promoteSuccess = false;
                 const destinationFolder = `${filePath.substring(0, filePath.lastIndexOf('/'))}`;
-                const copyFileStatus = await this.promoteCopy(filePath, destinationFolder, { sharepoint, sp });
+                const copyFileStatus = await promoteCopy(filePath, destinationFolder, { sharepoint, sp });
                 if (copyFileStatus) {
                     promoteSuccess = true;
                 } else {

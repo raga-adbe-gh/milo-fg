@@ -21,7 +21,6 @@ const {
     DELETE_ACTION,
     PROMOTE_ACTION
 } = require('./utils');
-const appConfig = require('./appConfig');
 const FgUser = require('./fgUser');
 const FgStatus = require('./fgStatus');
 
@@ -41,16 +40,15 @@ class FgAction {
 
     constructor(action, appConfig) {
         this.action = action || FG_PROOCESS_ACTION;
-        appConfig.setAppConfig(params);
-        this.spToken = appConfig.getUserToken();
+        this.appConfig = appConfig;
         // Defaults
         this.fgUser = null;
     }
 
     init({ fgStatusParams, skipUserDetails = false, ow }) {
-        const statsParams = { action: this.action, ...fgStatusParams };
+        const statsParams = { action: this.action, appConfig: this.appConfig, ...fgStatusParams };
         if (!skipUserDetails) {
-            this.fgUser = new FgUser({ at: this.spToken });
+            this.fgUser = new FgUser({ appConfig: this.appConfig });
             statsParams.userDetails = this.fgUser.getUserDetails();
         }
         this.fgStatus = new FgStatus(statsParams);
@@ -110,8 +108,8 @@ class FgAction {
     }
 
     isActionEnabled() {
-        return (this.action === PROMOTE_ACTION && appConfig.getEnablePromote()) ||
-            (this.action === DELETE_ACTION && appConfig.getEnableDelete());
+        return (this.action === PROMOTE_ACTION && this.appConfig.getEnablePromote()) ||
+            (this.action === DELETE_ACTION && this.appConfig.getEnableDelete());
     }
 
     /**

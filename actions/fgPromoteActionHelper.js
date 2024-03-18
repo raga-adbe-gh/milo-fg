@@ -127,7 +127,7 @@ class FgPromoteActionHelper {
         const sharepoint = new Sharepoint(appConfig);
         const sp = await appConfig.getSpConfig();
         // Pre check Access Token
-        await this.sharepoint.sharepointAuth.getAccessToken();
+        await sharepoint.getSharepointAuth().getAccessToken();
         const { promoteCopy } = this;
 
         async function promoteFile(batchItem) {

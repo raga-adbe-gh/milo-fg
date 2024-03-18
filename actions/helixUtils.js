@@ -146,7 +146,7 @@ class HelixUtils {
                 await this.bulkJobStatus(jobName, operation, repo, bulkPreviewStatus, retryAttempt + 1);
             } else if (response.ok) {
                 const jobStatusJson = await response.json();
-                logger.info(`${operation} progress ${JSON.stringify(jobStatusJson.progress)}`);
+                logger.info(`${operation} state ${JSON.stringify(jobStatusJson.state)} progress ${JSON.stringify(jobStatusJson.progress)}`);
                 jobStatusJson.data?.resources?.forEach((rs) => {
                     bulkPreviewStatus[rs.path] = { success: JOB_STATUS_CODES.includes(rs.status) };
                 });

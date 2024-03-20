@@ -11,7 +11,7 @@
     "@azure/msal-node": "^2.6.4",
     "cloudevents": "^4.0.2",
     "fetch-mock-jest": "^1.5.1",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^3.3.2",
     "openwhisk": "^3.21.7",
     "regenerator-runtime": "^0.13.5",
     "uuid": "^8.0.0"

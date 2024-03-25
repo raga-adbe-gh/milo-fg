@@ -47,6 +47,7 @@ describe('fgUser', () => {
                 fgAdminGroups: ['a'],
                 fgUserGroups: ['b'],
             }),
+            getUserToken: jest.fn().mockReturnValue('test')
         };
 
         FgUser = require('../actions/fgUser');

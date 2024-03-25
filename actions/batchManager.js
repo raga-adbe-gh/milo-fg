@@ -17,7 +17,6 @@
  ************************************************************************* */
 const filesLib = require('@adobe/aio-lib-files');
 const Batch = require('./batch');
-const appConfig = require('./appConfig');
 const { getAioLogger } = require('./utils');
 
 const logger = getAioLogger();
@@ -37,6 +36,8 @@ const logger = getAioLogger();
  *   There needs to be enhacement to handle this within this e.g. Batch execution stargergy should be implemented.
  */
 class BatchManager {
+    batchConfig = null;
+
     filesSdk = null;
 
     instanceData = { lastBatch: '', dtls: { batchesInfo: [] } };
@@ -50,7 +51,8 @@ class BatchManager {
     constructor(params) {
         this.params = params || {};
         this.batches = [];
-        this.batchFilesPath = appConfig.getBatchConfig()?.batchFilesPath;
+        this.batchConfig = params.batchConfig;
+        this.batchFilesPath = this.batchConfig.batchFilesPath;
         this.key = params.key;
         this.bmPath = `${this.batchFilesPath}/${this.key}`;
         this.bmTracker = `${this.bmPath}/tracker.json`;
@@ -82,7 +84,8 @@ class BatchManager {
                 ...this.params,
                 filesSdk: this.filesSdk,
                 instancePath: this.instancePath,
-                batchNumber: this.currentBatchNumber
+                batchNumber: this.currentBatchNumber,
+                maxFilesPerBatch: this.batchConfig.maxFilesPerBatch
             });
             this.batches.push(this.currentBatch);
         }
@@ -106,7 +109,8 @@ class BatchManager {
      * Structure
      * {
      *   instanceKeys: [_milo_pink],
-     *   '_milo_pink': {done: <true>, proceed: <true>}
+     *   '_milo_pink': {done: <true>, proceed: <true>},
+     * *  '_bacom_pink': {done: <true>, proceed: <true>},
      * }
      */
     async readBmTracker() {
@@ -275,7 +279,8 @@ class BatchManager {
         this.currentBatch = new Batch({
             filesSdk: this.filesSdk,
             instancePath: this.instancePath,
-            batchNumber: this.currentBatchNumber
+            batchNumber: this.currentBatchNumber,
+            maxFilesPerBatch: this.batchConfig.maxFilesPerBatch
         });
         this.batches.push(this.currentBatch);
         this.instanceData.lastBatch = this.currentBatchNumber;

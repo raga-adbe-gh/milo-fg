@@ -16,7 +16,7 @@
 ************************************************************************* */
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-const appConfig = require('../appConfig');
+const AppConfig = require('../appConfig');
 const {
     getAioLogger, COPY_ACTION, PROMOTE_ACTION, DELETE_ACTION
 } = require('../utils');
@@ -33,7 +33,7 @@ async function main(args) {
     const logger = getAioLogger();
     let payload;
     try {
-        appConfig.setAppConfig(args);
+        const appConfig = new AppConfig(args);
         const {
             type, shareUrl, fgShareUrl
         } = args;
@@ -41,7 +41,7 @@ async function main(args) {
             payload = 'Status : Required data is not available to get the status.';
             logger.error(payload);
         } else {
-            const fgStatus = new FgStatus({ action: actionMap[type] });
+            const fgStatus = new FgStatus({ action: actionMap[type], appConfig });
             payload = await fgStatus.getStatusFromStateLib();
         }
     } catch (err) {
@@ -49,14 +49,9 @@ async function main(args) {
         payload = err;
     }
 
-    return exitAction({
+    return {
         payload,
-    });
-}
-
-function exitAction(resp) {
-    appConfig.removePayload();
-    return resp;
+    };
 }
 
 exports.main = main;

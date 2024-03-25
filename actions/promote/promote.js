@@ -14,15 +14,14 @@
 * is strictly forbidden unless prior written permission is obtained
 * from Adobe.
 ************************************************************************* */
-
 // eslint-disable-next-line import/no-extraneous-dependencies
 const openwhisk = require('openwhisk');
 const {
     getAioLogger, PROMOTE_ACTION
 } = require('../utils');
 const FgStatus = require('../fgStatus');
-const FgAction = require('../FgAction');
-const appConfig = require('../appConfig');
+const FgAction = require('../fgAction');
+const AppConfig = require('../appConfig');
 
 // This returns the activation ID of the action that it called
 async function main(args) {
@@ -38,7 +37,8 @@ async function main(args) {
     };
     const ow = openwhisk();
     // Initialize action
-    const fgAction = new FgAction(PROMOTE_ACTION, args);
+    const appConfig = new AppConfig(args);
+    const fgAction = new FgAction(PROMOTE_ACTION, appConfig);
     fgAction.init({ ow });
     const { fgStatus } = fgAction.getActionParams();
 
@@ -46,7 +46,7 @@ async function main(args) {
         // Validations
         const vStat = await fgAction.validateAction(valParams);
         if (vStat && vStat.code !== 200) {
-            return exitAction(vStat);
+            return vStat;
         }
         fgAction.logStart();
 
@@ -58,13 +58,13 @@ async function main(args) {
         });
         logger.info(`FGStatus store ${await fgStatus.getStatusFromStateLib()}`);
 
-        return exitAction(ow.actions.invoke({
+        return ow.actions.invoke({
             name: 'milo-fg/promote-create-batch',
             blocking: false, // this is the flag that instructs to execute the worker asynchronous
             result: false,
             params: appConfig.getPassthruParams()
         }).then(async (result) => {
-            //  attaching activation id to the status
+            // attaching activation id to the status
             respPayload = await fgStatus.updateStatusToStateLib({
                 status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
                 activationId: result.activationId
@@ -82,7 +82,7 @@ async function main(args) {
                 code: 500,
                 payload: respPayload
             };
-        }));
+        });
     } catch (err) {
         logger.error(err);
         respPayload = await fgStatus.updateStatusToStateLib({
@@ -91,15 +91,10 @@ async function main(args) {
         });
     }
 
-    return exitAction({
+    return {
         code: 500,
         payload: respPayload,
-    });
-}
-
-function exitAction(resp) {
-    appConfig.removePayload();
-    return resp;
+    };
 }
 
 exports.main = main;

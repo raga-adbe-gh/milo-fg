@@ -125,32 +125,27 @@ describe('appConfig', () => {
         appConfig.setAppConfig({ ...params, enableDelete: 'true' });
         expect(appConfig.getEnablePromote()).toBeFalsy();
         expect(appConfig.getEnableDelete()).toBeTruthy();
-        appConfig.removePayload();
     });
 
     test('Test enable promote action flags', () => {
         appConfig.setAppConfig({ ...params, enablePromote: 'true' });
         expect(appConfig.getEnablePromote()).toBeTruthy();
         expect(appConfig.getEnableDelete()).toBeFalsy();
-        appConfig.removePayload();
     });
 
     test('Test enable delete and promote action flags', () => {
         appConfig.setAppConfig({ ...params, enableDelete: true, enablePromote: 'true' });
         expect(appConfig.getEnablePromote()).toBeTruthy();
         expect(appConfig.getEnableDelete()).toBeTruthy();
-        appConfig.removePayload();
     });
 
     test('test sptoken in param', () => {
         appConfig.setAppConfig(params);
         expect(appConfig.getPayload().spToken).toBe(params.spToken);
-        appConfig.removePayload();
     });
 
     test('test sptoken in header', () => {
         appConfig.setAppConfig({ ...params, __ow_headers: { 'user-token': 'usertoken' } });
         expect(appConfig.getPayload().spToken).toBe('usertoken');
-        appConfig.removePayload();
     });
 });

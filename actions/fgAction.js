@@ -15,8 +15,12 @@
  * from Adobe.
  ************************************************************************* */
 const openwhisk = require('openwhisk');
-const { getAioLogger, actInProgress } = require('./utils');
-const appConfig = require('./appConfig');
+const {
+    getAioLogger,
+    actInProgress,
+    DELETE_ACTION,
+    PROMOTE_ACTION
+} = require('./utils');
 const FgUser = require('./fgUser');
 const FgStatus = require('./fgStatus');
 
@@ -32,18 +36,19 @@ const ALL_OK_SC = 200;
  * The common parameter validation, user check,
  */
 class FgAction {
-    constructor(action, params) {
+    appConfig = null;
+
+    constructor(action, appConfig) {
         this.action = action || FG_PROOCESS_ACTION;
-        appConfig.setAppConfig(params);
-        this.spToken = params.spToken;
+        this.appConfig = appConfig;
         // Defaults
         this.fgUser = null;
     }
 
     init({ fgStatusParams, skipUserDetails = false, ow }) {
-        const statsParams = { action: this.action, ...fgStatusParams };
+        const statsParams = { action: this.action, appConfig: this.appConfig, ...fgStatusParams };
         if (!skipUserDetails) {
-            this.fgUser = new FgUser({ at: this.spToken });
+            this.fgUser = new FgUser({ appConfig: this.appConfig });
             statsParams.userDetails = this.fgUser.getUserDetails();
         }
         this.fgStatus = new FgStatus(statsParams);
@@ -53,7 +58,7 @@ class FgAction {
     getActionParams() {
         return {
             action: this.action,
-            appConfig,
+            appConfig: this.appConfig,
             fgStatus: this.fgStatus,
             fgUser: this.fgUser
         };
@@ -67,7 +72,7 @@ class FgAction {
     async validateStatusParams(statParams = []) {
         const resp = { ok: false, message: 'Status Params Validation' };
         logger.debug(resp.message);
-        const conf = appConfig.getPayload();
+        const conf = this.appConfig.getPayload();
         const valFailed = statParams.find((p) => !conf[p]) !== undefined;
         if (valFailed) {
             resp.message = 'Could not determine the project path. Try reloading the page and trigger the action again.';
@@ -87,7 +92,7 @@ class FgAction {
         const resp = { ok: false, message: 'Params Validation.' };
         logger.debug(resp.message);
         let stepMsg;
-        const conf = appConfig.getPayload();
+        const conf = this.appConfig.getPayload();
         const valFailed = reqParams.find((p) => !conf[p]) !== undefined;
         if (valFailed) {
             stepMsg = `Required data is not available to proceed with FG ${this.action}.`;
@@ -102,6 +107,11 @@ class FgAction {
         return resp;
     }
 
+    isActionEnabled() {
+        return (this.action === PROMOTE_ACTION && this.appConfig.getEnablePromote()) ||
+            (this.action === DELETE_ACTION && this.appConfig.getEnableDelete());
+    }
+
     /**
      * Validates event data is gone past over a day for allowing promote or delete
      * @returns respons object with ok as true or false and state details
@@ -109,21 +119,15 @@ class FgAction {
     async validateEventParameters() {
         const resp = { ok: false, message: 'Event paramters validation.' };
         const storeValue = await this.fgStatus.getStatusFromStateLib() || {};
-        const pdoverride = appConfig.getPdoverride();
-        const edgeWorkerEndDate = appConfig.getEdgeWorkerEndDate();
-        if (!pdoverride && edgeWorkerEndDate) {
-            edgeWorkerEndDate.setDate(edgeWorkerEndDate.getDate() + 1);
-            let stepMsg;
-            if (new Date() <= edgeWorkerEndDate) {
-                stepMsg = 'Access Denied! Event in progress or concluded within 24 hours.';
-                await this.fgStatus?.updateStatusToStateLib({
-                    status: FgStatus.PROJECT_STATUS.FAILED,
-                    statusMessage: stepMsg
-                });
-                resp.message = stepMsg;
-                resp.details = storeValue;
-                return resp;
-            }
+        if (!this.isActionEnabled()) {
+            const stepMsg = 'Access Denied! Feature is disabled.';
+            await this.fgStatus?.updateStatusToStateLib({
+                status: FgStatus.PROJECT_STATUS.FAILED,
+                statusMessage: stepMsg
+            });
+            resp.message = stepMsg;
+            resp.details = storeValue;
+            return resp;
         }
         resp.ok = true;
         return resp;
@@ -164,7 +168,7 @@ class FgAction {
         const actId = storeValue?.action?.activationId;
         const fgInProg = FgStatus.isInProgress(svStatus);
 
-        if (!appConfig.getSkipInProgressCheck() && fgInProg) {
+        if (!this.appConfig.getSkipInProgressCheck() && fgInProg) {
             if (!checkActivation || await actInProgress(this.ow, actId, FgStatus.isInProgress(svStatus))) {
                 stepMsg = `A ${this.action} project with activationid: ${storeValue?.action?.activationId} is already in progress. 
                 Not triggering this action. And the previous action can be retrieved by refreshing the console page`;

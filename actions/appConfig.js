@@ -20,24 +20,27 @@ const { strToArray, strToBool, getAioLogger } = require('./utils');
 const UrlInfo = require('./urlInfo');
 
 // Max activation is 1hrs, set to 2hrs
-const MAX_ACTIVATION_TIME = 2 * 60 * 60 * 1000;
-const ENV_VAR_ACTIVATION_ID = '__OW_ACTIVATION_ID';
+const GRAPH_API = 'https://graph.microsoft.com/v1.0';
 
 /**
  * This store the Floodate configs.
  * Common Configs - Parameters like Batch
  */
 class AppConfig {
-    // set payload per activation
-    configMap = { payload: {} };
+    constructor(params) {
+        this.configMap = { payload: {} };
+        if (params) {
+            this.setAppConfig(params);
+        }
+    }
 
     setAppConfig(params) {
-        const payload = this.initPayload();
-        // Called during action start to cleanup old entries
-        this.removeOldPayload();
+        const payload = this.getPayload();
 
         // These are payload parameters
-        payload.spToken = params.spToken;
+        // eslint-disable-next-line no-underscore-dangle
+        const headers = params.__ow_headers;
+        payload.spToken = headers?.['user-token'] || params.spToken;
         payload.adminPageUri = params.adminPageUri;
         payload.projectExcelPath = params.projectExcelPath;
         payload.shareUrl = params.shareUrl;
@@ -49,8 +52,8 @@ class AppConfig {
         payload.driveId = params.driveId;
         payload.fgColor = params.fgColor || 'pink';
         payload.draftsOnly = params.draftsOnly;
-        payload.pdoverride = params.pdoverride;
-        payload.edgeWorkerEndDate = params.edgeWorkerEndDate;
+        payload.enablePromote = params.enablePromote;
+        payload.enableDelete = params.enableDelete;
 
         // These are from configs and not activation related
         this.configMap.fgSite = params.fgSite;
@@ -83,37 +86,8 @@ class AppConfig {
         };
     }
 
-    // Activation Payload Related
-    initPayload() {
-        this.configMap.payload[this.getPayloadKey()] = {
-            payloadAccessedOn: new Date().getTime()
-        };
-        return this.configMap.payload[this.getPayloadKey()];
-    }
-
-    getPayloadKey() {
-        return process.env[ENV_VAR_ACTIVATION_ID];
-    }
-
     getPayload() {
-        this.configMap.payload[this.getPayloadKey()].payloadAccessedOn = new Date().getTime();
-        return this.configMap.payload[this.getPayloadKey()];
-    }
-
-    removePayload() {
-        delete this.configMap.payload[this.getPayloadKey()];
-    }
-
-    /**
-     * Similar to LRU
-     */
-    removeOldPayload() {
-        const { payload } = this.configMap;
-        const payloadKeys = Object.keys(payload);
-        const leastTime = new Date().getTime();
-        payloadKeys
-            .filter((key) => payload[key]?.payloadAccessedOn < leastTime - MAX_ACTIVATION_TIME)
-            .forEach((key) => delete payload[key]);
+        return this.configMap.payload;
     }
 
     // Configs related methods
@@ -229,18 +203,85 @@ class AppConfig {
         return strToBool(this.getPayload().doPublish);
     }
 
-    getPdoverride() {
-        return strToBool(this.getPayload().pdoverride);
+    getEnablePromote() {
+        return strToBool(this.getPayload().enablePromote);
     }
 
-    getEdgeWorkerEndDate() {
-        try {
-            const dtStr = this.getPayload().edgeWorkerEndDate;
-            return dtStr ? new Date(this.getPayload().edgeWorkerEndDate) : null;
-        } catch (err) {
-            return null;
+    getEnableDelete() {
+        return strToBool(this.getPayload().enableDelete);
+    }
+
+    getUserToken() {
+        return this.getPayload().spToken;
+    }
+
+    getSpConfig() {
+        if (!this.getUrlInfo().isValid()) {
+            return undefined;
         }
+
+        const config = this.getConfig();
+
+        // get drive id if available
+        const { driveId, rootFolder, fgRootFolder } = this.getPayload();
+        const drive = driveId ? `/drives/${driveId}` : '/drive';
+
+        const baseURI = `${config.fgSite}${drive}/root:${rootFolder}`;
+        const fgBaseURI = `${config.fgSite}${drive}/root:${fgRootFolder}`;
+        const baseItemsURI = `${config.fgSite}${drive}/items`;
+        return {
+            api: {
+                url: GRAPH_API,
+                file: {
+                    get: { baseURI, fgBaseURI },
+                    download: { baseURI: `${config.fgSite}${drive}/items` },
+                    upload: {
+                        baseURI,
+                        fgBaseURI,
+                        method: 'PUT',
+                    },
+                    delete: {
+                        baseURI,
+                        fgBaseURI,
+                        method: 'DELETE',
+                    },
+                    update: {
+                        baseURI,
+                        fgBaseURI,
+                        method: 'PATCH',
+                    },
+                    createUploadSession: {
+                        baseURI,
+                        fgBaseURI,
+                        method: 'POST',
+                        payload: { '@microsoft.graph.conflictBehavior': 'replace' },
+                    },
+                    copy: {
+                        baseURI,
+                        fgBaseURI,
+                        method: 'POST',
+                        payload: { '@microsoft.graph.conflictBehavior': 'replace' },
+                    },
+                },
+                directory: {
+                    create: {
+                        baseURI,
+                        fgBaseURI,
+                        method: 'PATCH',
+                        payload: { folder: {} },
+                    },
+                },
+                excel: {
+                    get: { baseItemsURI },
+                    update: {
+                        baseItemsURI,
+                        method: 'POST',
+                    },
+                },
+                batch: { uri: `${GRAPH_API}/$batch` },
+            },
+        };
     }
 }
 
-module.exports = new AppConfig();
+module.exports = AppConfig;

@@ -1,4 +1,4 @@
-name: AIO App CI
+name: AIO App - Prod Deploy
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
           echo "BULK_PREVIEW_CHECK_INTERVAL : $BULK_PREVIEW_CHECK_INTERVAL"
           echo "MAX_BULK_PREVIEW_CHECKS : $MAX_BULK_PREVIEW_CHECKS"
           echo "ENABLE_PREVEW_PUBLISH : $ENABLE_PREVEW_PUBLISH"
-        env: 
+        env:
           GROUP_CHECK_URL: ${{ vars.GROUP_CHECK_URL }}
           FG_USER_GROUPS: ${{ vars.FG_USER_GROUPS }}
           FG_ADMIN_GROUPS: ${{ vars.FG_ADMIN_GROUPS }}

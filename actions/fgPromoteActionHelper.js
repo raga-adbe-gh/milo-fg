@@ -93,50 +93,18 @@ class FgPromoteActionHelper {
         }
     }
 
-    /**
-     * Copies the Floodgated files back to the main content tree.
-     * Creates intermediate folders if needed.
-     */
-    async promoteCopy(srcPath, destinationFolder, { sharepoint, sp }) {
-        const { baseURI } = sp.api.file.copy;
-        const rootFolder = baseURI.split('/').pop();
-        const payload = { ...sp.api.file.copy.payload, parentReference: { path: `${rootFolder}${destinationFolder}` } };
-        const options = await sharepoint.getAuthorizedRequestOption({
-            method: sp.api.file.copy.method,
-            body: JSON.stringify(payload),
-        });
-
-        // copy source is the pink directory for promote
-        const copyStatusInfo = await sharepoint.fetchWithRetry(`${sp.api.file.copy.fgBaseURI}${srcPath}:/copy?@microsoft.graph.conflictBehavior=replace`, options);
-        const statusUrl = copyStatusInfo.headers.get('Location');
-        let copySuccess = false;
-        let copyStatusJson = {};
-        while (statusUrl && !copySuccess && copyStatusJson.status !== 'failed') {
-            // eslint-disable-next-line no-await-in-loop
-            const status = await sharepoint.fetchWithRetry(statusUrl);
-            if (status.ok) {
-                // eslint-disable-next-line no-await-in-loop
-                copyStatusJson = await status.json();
-                copySuccess = copyStatusJson.status === 'completed';
-            }
-        }
-        return copySuccess;
-    }
-
     async promoteFloodgatedFiles(batchManager, appConfig) {
         const logger = getAioLogger();
         const sharepoint = new Sharepoint(appConfig);
         const sp = await appConfig.getSpConfig();
         // Pre check Access Token
         await sharepoint.getSharepointAuth().getAccessToken();
-        const { promoteCopy } = this;
 
         async function promoteFile(batchItem) {
             const { fileDownloadUrl, filePath, mimeType } = batchItem.file;
             const status = { success: false, srcPath: filePath };
             try {
                 let promoteSuccess = false;
-                const destinationFolder = `${filePath.substring(0, filePath.lastIndexOf('/'))}`;
                 const content = await sharepoint.getFileUsingDownloadUrl(fileDownloadUrl);
                 const uploadStatus = await sharepoint.uploadFileByPath(sp, filePath, { content, mimeType });
                 if (uploadStatus) {

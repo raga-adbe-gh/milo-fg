@@ -81,8 +81,9 @@ class FgPromoteActionHelper {
                             fgFolders.push(itemPath);
                         } else {
                             const downloadUrl = `${downloadBaseURI}/${item.id}/content`;
+                            const mimeType = item.file?.mimeType;
                             // eslint-disable-next-line no-await-in-loop
-                            await batchManager.addFile({ fileDownloadUrl: downloadUrl, filePath: itemPath });
+                            await batchManager.addFile({ fileDownloadUrl: downloadUrl, filePath: itemPath, mimeType });
                         }
                     } else {
                         logger.info(`Ignored from promote: ${itemPath}`);
@@ -131,17 +132,17 @@ class FgPromoteActionHelper {
         const { promoteCopy } = this;
 
         async function promoteFile(batchItem) {
-            const { fileDownloadUrl, filePath } = batchItem.file;
+            const { fileDownloadUrl, filePath, mimeType } = batchItem.file;
             const status = { success: false, srcPath: filePath };
             try {
                 let promoteSuccess = false;
                 const destinationFolder = `${filePath.substring(0, filePath.lastIndexOf('/'))}`;
-                const copyFileStatus = await promoteCopy(filePath, destinationFolder, { sharepoint, sp });
-                if (copyFileStatus) {
+                const content = await sharepoint.getFileUsingDownloadUrl(fileDownloadUrl);
+                const uploadStatus = await sharepoint.uploadFileByPath(sp, filePath, { content, mimeType });
+                if (uploadStatus) {
                     promoteSuccess = true;
                 } else {
-                    const file = await sharepoint.getFileUsingDownloadUrl(fileDownloadUrl);
-                    const saveStatus = await sharepoint.saveFile(file, filePath);
+                    const saveStatus = await sharepoint.saveFile(content, filePath);
                     if (saveStatus.success) {
                         promoteSuccess = true;
                     }

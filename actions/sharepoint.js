@@ -43,7 +43,7 @@ class Sharepoint {
     }
 
     // eslint-disable-next-line default-param-last
-    async getAuthorizedRequestOption({ body = null, json = true, method = 'GET' } = {}) {
+    async getAuthorizedRequestOption({ body = null, json = true, method = 'GET', contentType = 'application/json'} = {}) {
         const appSpToken = await this.sharepointAuth.getAccessToken();
         const bearer = `Bearer ${appSpToken}`;
 
@@ -52,7 +52,7 @@ class Sharepoint {
         headers.append('User-Agent', APP_USER_AGENT);
         if (json) {
             headers.append('Accept', 'application/json');
-            headers.append('Content-Type', 'application/json');
+            headers.append('Content-Type', contentType);
         }
 
         const options = {
@@ -60,7 +60,9 @@ class Sharepoint {
             headers,
         };
 
-        if (body) {
+        if (body instanceof Buffer) {
+            options.body = body;
+        } else if (body) {
             options.body = typeof body === 'string' ? body : JSON.stringify(body);
         }
 
@@ -146,7 +148,7 @@ class Sharepoint {
         const options = await this.getAuthorizedRequestOption({ json: false });
         const response = await this.fetchWithRetry(downloadUrl, options);
         if (response) {
-            return response.blob();
+            return response.buffer();
         }
         return undefined;
     }
@@ -203,6 +205,23 @@ class Sharepoint {
         options.body = file;
         return this.fetchWithRetry(`${uploadUrl}`, options);
     }
+
+    async uploadFileByPath(sp, relativePath, { content, mimeType }, isFloodgate = false) {
+        const logger = getAioLogger();
+        const start = performance.now();
+        const { baseURI, fgBaseURI, method } = sp.api.file.upload;
+        const contentURI = isFloodgate ? fgBaseURI : baseURI;
+        const options = {
+            method,
+            body: content,
+            contentType: mimeType ?? 'application/octet-stream',
+        };
+        const uploadUrl = `${contentURI}${relativePath}:/content`;
+        logger.debug(`Upload file to ${relativePath} with size ${content.size} with mime ${mimeType} via PUT.`);
+        const updateStatus = await this.executeGQL(uploadUrl, options);
+        logger.debug(`Upload file to ${relativePath} via PUT. Time taken ${performance.now()-start}.`);
+        return updateStatus;
+    };
 
     async deleteFile(sp, filePath) {
         const options = await this.getAuthorizedRequestOption({

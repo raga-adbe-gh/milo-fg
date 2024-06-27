@@ -64,7 +64,12 @@ describe('sharepoint', () => {
                     },
                     update: {
                         fgBaseURI,
-                    }
+                    },
+                    upload: {
+                        baseURI,
+                        fgBaseURI,
+                        method: 'PUT',
+                    },
                 },
                 excel: {
                     get: { baseItemsURI: 'https://gql/base' },
@@ -194,13 +199,13 @@ describe('sharepoint', () => {
         );
     });
 
-    it('should return a blob object when given a valid download URL and authorized request options', async () => {
+    it('should return a buffer object when given a valid download URL and authorized request options', async () => {
         // Mock the necessary dependencies
         const sharepoint = new Sharepoint(appConfig);
         const downloadUrl = '/file/download';
 
         // Mock the fetchWithRetry method
-        sharepoint.fetchWithRetry = jest.fn().mockResolvedValue({ blob: () => 'Test' });
+        sharepoint.fetchWithRetry = jest.fn().mockResolvedValue({ buffer: () => 'Test' });
 
         // Invoke the method and assert the result
         const result = await sharepoint.getFileUsingDownloadUrl(downloadUrl);
@@ -566,5 +571,16 @@ describe('sharepoint', () => {
         expect(response.status).toBe(200);
         const data = await response.json();
         expect(data).toEqual({});
+    });
+
+    it('uploads a file and returns update status', async () => {
+        const sharepoint = new Sharepoint(appConfig);
+        jest.spyOn(sharepoint, 'executeGQL').mockResolvedValueOnce({ 'id': 'SP10' });
+        const options = {
+            content: Buffer.from('Testing'),
+            mime: 'text/plain',
+        }
+        const response = await sharepoint.uploadFileByPath(appConfig.getSpConfig(), '/drafts/file.txt', options);
+        expect(response.id).toEqual('SP10');
     });
 });

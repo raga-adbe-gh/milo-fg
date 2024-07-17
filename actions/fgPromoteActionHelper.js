@@ -19,11 +19,12 @@ const {
     delay,
     isFilePatternMatched,
     getAioLogger,
-    logMemUsage
+    logMemUsage,
+    inParallel,
 } = require('./utils');
 const Sharepoint = require('./sharepoint');
 
-const DELAY_TIME_PROMOTE = 3000;
+const DELAY_TIME_PROMOTE = 100;
 const MAX_CHILDREN = 5000;
 
 class FgPromoteActionHelper {
@@ -93,68 +94,44 @@ class FgPromoteActionHelper {
         }
     }
 
+    async promoteFile(batchItem, { appConfig }) {
+        const logger = getAioLogger();
+        const sharepoint = new Sharepoint(appConfig);
+        const spConfig = await appConfig.getSpConfig();
+        const { fileDownloadUrl, filePath, mimeType } = batchItem.file;
+        const status = { success: false, srcPath: filePath };
+        try {
+            const content = await sharepoint.getFileUsingDownloadUrl(fileDownloadUrl);
+            const uploadStatus = await sharepoint.uploadFileByPath(spConfig, filePath, { content, mimeType });
+            status.success = uploadStatus.success;
+            status.locked = uploadStatus.locked;
+        } catch (error) {
+            logger.error(`Error promoting files ${fileDownloadUrl} at ${filePath} to main content tree ${error.message}`);
+        }
+        return status;
+    };
+
     async promoteFloodgatedFiles(batchManager, appConfig) {
         const logger = getAioLogger();
         const sharepoint = new Sharepoint(appConfig);
-        const sp = await appConfig.getSpConfig();
         // Pre check Access Token
         await sharepoint.getSharepointAuth().getAccessToken();
 
-        async function promoteFile(batchItem) {
-            const { fileDownloadUrl, filePath, mimeType } = batchItem.file;
-            const status = { success: false, srcPath: filePath };
-            try {
-                let promoteSuccess = false;
-                const content = await sharepoint.getFileUsingDownloadUrl(fileDownloadUrl);
-                const uploadStatus = await sharepoint.uploadFileByPath(sp, filePath, { content, mimeType });
-                if (uploadStatus) {
-                    promoteSuccess = true;
-                } else {
-                    const saveStatus = await sharepoint.saveFile(content, filePath);
-                    if (saveStatus.success) {
-                        promoteSuccess = true;
-                    }
-                }
-                status.success = promoteSuccess;
-            } catch (error) {
-                const errorMessage = `Error promoting files ${fileDownloadUrl} at ${filePath} to main content tree ${error.message}`;
-                logger.error(errorMessage);
-                status.success = false;
-            }
-            return status;
-        }
-
-        let i = 0;
         let stepMsg = 'Getting all floodgated files to promote.';
         // Get the batch files using the batchmanager for the assigned batch and process them
         const currentBatch = await batchManager.getCurrentBatch();
         const currBatchLbl = `Batch-${currentBatch.getBatchNumber()}`;
         const allFloodgatedFiles = await currentBatch?.getFiles();
-        logger.info(`Files for the batch are ${allFloodgatedFiles.length}`);
-        // create batches to process the data
-        const batchArray = [];
         const numBulkReq = appConfig.getNumBulkReq();
-        for (i = 0; i < allFloodgatedFiles.length; i += numBulkReq) {
-            const arrayChunk = allFloodgatedFiles.slice(i, i + numBulkReq);
-            batchArray.push(arrayChunk);
-        }
+        logger.info(`Files for the batch are ${allFloodgatedFiles.length}`);
 
-        // process data in batches
-        const promoteStatuses = [];
-        for (i = 0; i < batchArray.length; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            promoteStatuses.push(...await Promise.all(
-                batchArray[i].map((bi) => promoteFile(bi))
-            ));
-            // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
-            await delay(DELAY_TIME_PROMOTE);
-        }
+        const promoteStatuses = await inParallel(allFloodgatedFiles, this.promoteFile, logger, false, { appConfig }, numBulkReq);
 
         stepMsg = `Completed promoting all documents in the batch ${currBatchLbl}`;
         logger.info(stepMsg);
 
         const failedPromotes = promoteStatuses.filter((status) => !status.success)
-            .map((status) => status.srcPath || 'Path Info Not available');
+            .map((status) => ({path: status.srcPath || 'Path Info Not available', message: `${status.locked ? 'locked': ''}`}));
         logger.info(`Promote ${currBatchLbl}, Prm: ${failedPromotes?.length}`);
 
         if (failedPromotes.length > 0) {
@@ -182,7 +159,7 @@ class FgPromoteActionHelper {
         const promotedFiles = allFloodgatedFiles.map((e) => e.file.filePath);
         const resultsContent = await currentBatch.getResultsContent() || {};
         const failedPromotes = resultsContent.failedPromotes || [];
-        const prevPaths = promotedFiles.filter((item) => !failedPromotes.includes(item)).map((e) => handleExtension(e));
+        const prevPaths = promotedFiles.filter((item) => !failedPromotes.find(fpItem => fpItem.path === item)).map((e) => handleExtension(e));
         logger.info(`Post promote files for ${currBatchLbl} are ${prevPaths?.length}`);
 
         logger.info('Previewing promoted files.');
@@ -203,10 +180,10 @@ class FgPromoteActionHelper {
         }
 
         const failedPreviews = previewStatuses.filter((status) => !status.success)
-            .map((status) => status.path);
+            .map((status) => ({path: status.path}));
         const failedPublishes = publishStatuses.filter((status) => !status.success)
-            .map((status) => status.path);
-        logger.info(`Post promote ${currBatchLbl}, Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length}`);
+            .map((status) => ({path: status.path}));
+        logger.info(`Post promote ${currBatchLbl}, Prm: ${failedPromotes?.length}, Prv: ${failedPreviews?.length}, Pub: ${failedPublishes?.length}`)
 
         if (failedPromotes.length > 0 || failedPreviews.length > 0 || failedPublishes.length > 0) {
             stepMsg = 'Error occurred when promoting floodgated content. Check project excel sheet for additional information.';

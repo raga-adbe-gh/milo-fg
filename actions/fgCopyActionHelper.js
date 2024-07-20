@@ -29,40 +29,25 @@ const BATCH_REQUEST_COPY = 20;
  * Floodgate action helper routines
  */
 class FloodgateActionHelper {
-    async floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor, { sharepoint, helixUtils }) {
+    async floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor, { sharepoint, helixUtils, spConfig }) {
         const logger = getAioLogger();
         logger.info('Floodgating content started.');
 
         async function copyFilesToFloodgateTree(fileInfo) {
             const status = { success: false };
             if (!fileInfo?.doc) return status;
+            const filePath = fileInfo.doc.filePath;
+            status.srcPath = filePath;
+            status.url = fileInfo.doc.url;
+            logger.info(`Copying ${filePath} to floodgated folder`);
 
             try {
-                const srcPath = fileInfo.doc.filePath;
-                logger.info(`Copying ${srcPath} to floodgated folder`);
-
-                const destinationFolder = `${srcPath.substring(0, srcPath.lastIndexOf('/'))}`;
-                let copyStatus = await sharepoint.copyFile(srcPath, destinationFolder, undefined, true);
-                if (!copyStatus.success && copyStatus.locked) {
-                    logger.info(`Copy was not successful for ${srcPath}. Alternate copy option will be used`);
-                    const file = await sharepoint.getFile(fileInfo.doc);
-                    if (file) {
-                        const destination = fileInfo.doc.filePath;
-                        if (destination) {
-                            // Save the file in the floodgate destination location
-                            const saveStatus = await sharepoint.saveFile(file, destination, true);
-                            if (saveStatus.success) {
-                                copyStatus.success = true;
-                            }
-                        }
-                    }
-                }
+                const content = await sharepoint.getFile(fileInfo.doc);
+                const copyStatus = await sharepoint.uploadFileByPath(spConfig, filePath, { content, mimeType: fileInfo.doc.mimeType }, true);
                 status.success = copyStatus.success;
                 status.locked = copyStatus.locked;
-                status.srcPath = srcPath;
-                status.url = fileInfo.doc.url;
             } catch (error) {
-                logger.error(`Error occurred when trying to copy files to floodgated content folder ${error.message}`);
+                logger.error(`Error copying files ${filePath} to fg content tree ${error.message}`);
             }
             return status;
         }

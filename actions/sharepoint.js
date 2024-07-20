@@ -116,8 +116,7 @@ class Sharepoint {
         const resp = await this.fetchWithRetry(`${baseURI}${filePath}`, options);
         const json = await resp.json();
         const fileDownloadUrl = json['@microsoft.graph.downloadUrl'];
-        const fileSize = json.size;
-        return { fileDownloadUrl, fileSize };
+        return { fileDownloadUrl, fileSize: json.size, mimeType: json.mimeType };
     }
 
     async getFilesData(filePaths, isFloodgate) {

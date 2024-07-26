@@ -99,14 +99,23 @@ async function main(args) {
             payload.batchFiles = batchFilesContent?.map((e) => e.file?.filePath);
         }
 
+        const extractMessages = (results) => {
+            return Object.fromEntries(
+                Object.entries(results).map(([key, value]) => [
+                    key,
+                    value.map(item => `${item.path}${item.message ? ` (${item.message})` : ''}`)
+                ])
+            );
+        };
+
         if (args.batchResults !== undefined) {
             const brC = await currentBatch.getResultsContent();
-            if (brC) payload.batchResults = brC;
+            if (brC) payload.batchResults = extractMessages(brC);
         }
 
         if (args.promoteResults !== undefined) {
             const prC = await batchManager.getResultsContent();
-            if (prC) payload.promoteResults = prC;
+            if (prC) payload.promoteResults = extractMessages(prC);
         }
     } catch (err) {
         logger.error(err);

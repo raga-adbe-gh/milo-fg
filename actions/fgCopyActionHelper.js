@@ -17,85 +17,49 @@
 const {
     handleExtension,
     toUTCStr,
-    delay,
+    inParallel,
     getAioLogger,
     logMemUsage
 } = require('./utils');
 const FgStatus = require('./fgStatus');
 
 const BATCH_REQUEST_COPY = 20;
-const DELAY_TIME_COPY = 3000;
 
 /**
  * Floodgate action helper routines
  */
 class FloodgateActionHelper {
-    async floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor, { sharepoint, helixUtils }) {
+    async floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor, { sharepoint, helixUtils, spConfig }) {
         const logger = getAioLogger();
         logger.info('Floodgating content started.');
 
         async function copyFilesToFloodgateTree(fileInfo) {
             const status = { success: false };
             if (!fileInfo?.doc) return status;
+            const filePath = fileInfo.doc.filePath;
+            status.srcPath = filePath;
+            status.url = fileInfo.doc.url;
+            logger.info(`Copying ${filePath} to floodgated folder`);
 
             try {
-                const srcPath = fileInfo.doc.filePath;
-                logger.info(`Copying ${srcPath} to floodgated folder`);
-
-                let copySuccess = false;
-                const destinationFolder = `${srcPath.substring(0, srcPath.lastIndexOf('/'))}`;
-                copySuccess = await sharepoint.copyFile(srcPath, destinationFolder, undefined, true);
-                if (copySuccess === false) {
-                    logger.info(`Copy was not successful for ${srcPath}. Alternate copy option will be used`);
-                    const file = await sharepoint.getFile(fileInfo.doc);
-                    if (file) {
-                        const destination = fileInfo.doc.filePath;
-                        if (destination) {
-                            // Save the file in the floodgate destination location
-                            const saveStatus = await sharepoint.saveFile(file, destination, true);
-                            if (saveStatus.success) {
-                                copySuccess = true;
-                            }
-                        }
-                    }
-                }
-                status.success = copySuccess;
-                status.srcPath = srcPath;
-                status.url = fileInfo.doc.url;
+                const content = await sharepoint.getFile(fileInfo.doc);
+                const copyStatus = await sharepoint.uploadFileByPath(spConfig, filePath, { content, mimeType: fileInfo.doc.mimeType }, true);
+                status.success = copyStatus.success;
+                status.locked = copyStatus.locked;
             } catch (error) {
-                logger.error(`Error occurred when trying to copy files to floodgated content folder ${error.message}`);
+                logger.error(`Error copying files ${filePath} to fg content tree ${error.message}`);
             }
             return status;
         }
 
-        // create batches to process the data
-        const contentToFloodgate = [...projectDetail.urls];
-        const batchArray = [];
-        for (let i = 0; i < contentToFloodgate.length; i += BATCH_REQUEST_COPY) {
-            const arrayChunk = contentToFloodgate.slice(i, i + BATCH_REQUEST_COPY);
-            batchArray.push(arrayChunk);
-        }
+        logMemUsage();
+        const projectUrlDetailsArr = [...projectDetail.urls];
+        await projectUrlDetailsArr.reduce(async (previous, current) => {
+            await previous;
+            await sharepoint.bulkCreateFolders(current, true);
+        }, Promise.resolve());
 
-        // process data in batches
-        const copyStatuses = [];
-        // Get the access token to cache, avoidid parallel hits to this in below loop.
-        await sharepoint.getSharepointAuth().getAccessToken();
-        for (let i = 0; i < batchArray.length; i += 1) {
-            // Log memory usage per batch as copy is a heavy operation. Can be removed after testing are done.
-            // Can be replaced with logMemUsageIter for regular logging
-            logMemUsage();
-            logger.info(`Batch create folder ${i} in progress`);
-            // eslint-disable-next-line no-await-in-loop
-            await sharepoint.bulkCreateFolders(batchArray[i], true);
-            logger.info(`Batch copy ${i} in progress`);
-            // eslint-disable-next-line no-await-in-loop
-            copyStatuses.push(...await Promise.all(
-                batchArray[i].map((files) => copyFilesToFloodgateTree(files[1])),
-            ));
-            logger.info(`Batch copy ${i} completed`);
-            // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
-            await delay(DELAY_TIME_COPY);
-        }
+        const copyStatuses = await inParallel(projectUrlDetailsArr, (item) => copyFilesToFloodgateTree(item[1]), logger, false, null, BATCH_REQUEST_COPY);
         logger.info('Completed floodgating documents listed in the project excel');
 
         logger.info('Previewing floodgated files... ');
@@ -106,7 +70,7 @@ class FloodgateActionHelper {
         }
         logger.info('Completed generating Preview for floodgated files.');
         const failedCopies = copyStatuses.filter((status) => !status.success)
-            .map((status) => status.srcPath || 'Path Info Not available');
+            .map((status) => `${status.srcPath || 'Path Info Not available'}${status.locked ? ' (locked)': ''}`);
         const failedPreviews = previewStatuses.filter((status) => !status.success)
             .map((status) => status.path);
         const fgErrors = failedCopies.length > 0 || failedPreviews.length > 0;

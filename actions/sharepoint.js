@@ -18,13 +18,13 @@
 const { Headers } = require('node-fetch');
 const fetch = require('node-fetch');
 const { getAioLogger } = require('./utils');
+const { executeRequest } = require('./requestWrapper');
 const SharepointAuth = require('./sharepointAuth');
 
 const SP_CONN_ERR_LST = ['ETIMEDOUT', 'ECONNRESET'];
 const APP_USER_AGENT = 'NONISV|Adobe|MiloFloodgate/0.1.0';
 const BATCH_REQUEST_LIMIT = 20;
 const BATCH_DELAY_TIME = 200;
-const NUM_REQ_THRESHOLD = 5;
 const RETRY_ON_CF = 3;
 const TOO_MANY_REQUESTS = '429';
 // Added for debugging rate limit headers
@@ -71,16 +71,19 @@ class Sharepoint {
 
     async executeGQL(url, opts) {
         const options = await this.getAuthorizedRequestOption(opts);
-        const res = await this.fetchWithRetry(url, options);
+        const res = await this.fetchWithRetry(url, options, { donotRetryLockedFiles: true });
+        const response = { success: res.ok };
         if (!res.ok) {
-            throw new Error(`Failed to execute ${url}`);
+            response.locked = this.isLocked(res.status);
+        } else {
+            response.json = await res.json();
         }
-        return res.json();
+        return response;
     }
 
     async getItemId(uri, path) {
         const key = `~${uri}~${path}~`;
-        itemIdMap[key] = itemIdMap[key] || await this.executeGQL(`${uri}${path}?$select=id`);
+        itemIdMap[key] = itemIdMap[key] || (await this.executeGQL(`${uri}${path}?$select=id`)).json;
         return itemIdMap[key]?.id;
     }
 
@@ -113,8 +116,7 @@ class Sharepoint {
         const resp = await this.fetchWithRetry(`${baseURI}${filePath}`, options);
         const json = await resp.json();
         const fileDownloadUrl = json['@microsoft.graph.downloadUrl'];
-        const fileSize = json.size;
-        return { fileDownloadUrl, fileSize };
+        return { fileDownloadUrl, fileSize: json.size, mimeType: json.mimeType };
     }
 
     async getFilesData(filePaths, isFloodgate) {
@@ -139,7 +141,7 @@ class Sharepoint {
     async getFile(doc) {
         if (doc && doc.sp && doc.sp.status === 200) {
             const response = await this.fetchWithRetry(doc.sp.fileDownloadUrl);
-            return response.blob();
+            return response.buffer();
         }
         return undefined;
     }
@@ -177,33 +179,35 @@ class Sharepoint {
         return path.split('/').pop().split('/').pop();
     }
 
+    isLocked = (statusCode) => statusCode === 409 || statusCode === 423;
+
     async createUploadSession(sp, file, dest, filename, isFloodgate) {
         const payload = {
             ...sp.api.file.createUploadSession.payload,
             description: 'Preview file',
-            fileSize: file.size,
+            fileSize: file.length,
             name: filename,
         };
         const options = await this.getAuthorizedRequestOption({ method: sp.api.file.createUploadSession.method });
         options.body = JSON.stringify(payload);
-
         const baseURI = isFloodgate ? sp.api.file.createUploadSession.fgBaseURI : sp.api.file.createUploadSession.baseURI;
 
-        const createdUploadSession = await this.fetchWithRetry(`${baseURI}${dest}:/createUploadSession`, options);
-        return createdUploadSession.ok ? createdUploadSession.json() : undefined;
+        const createdUploadSession = await this.fetchWithRetry(`${baseURI}${dest}:/createUploadSession`, options, { noRetry: true });
+        return createdUploadSession.ok ? await createdUploadSession.json() : { locked: this.isLocked(createdUploadSession.status) };
     }
 
     async uploadFile(sp, uploadUrl, file) {
+        const logger = getAioLogger();
         const options = await this.getAuthorizedRequestOption({
             json: false,
             method: sp.api.file.upload.method,
         });
-        // TODO API is limited to 60Mb, for more, we need to batch the upload.
-        options.headers.append('Content-Length', file.size);
-        options.headers.append('Content-Range', `bytes 0-${file.size - 1}/${file.size}`);
+        const fileSize = file.length;
+        options.headers.append('Content-Length', fileSize);
+        options.headers.append('Content-Range', `bytes 0-${fileSize - 1}/${fileSize}`);
         options.headers.append('Prefer', 'bypass-shared-lock');
         options.body = file;
-        return this.fetchWithRetry(`${uploadUrl}`, options);
+        return this.fetchWithRetry(`${uploadUrl}`, options, { donotRetryLockedFiles: true });
     }
 
     async uploadFileByPath(sp, relativePath, { content, mimeType }, isFloodgate = false) {
@@ -217,9 +221,8 @@ class Sharepoint {
             contentType: mimeType ?? 'application/octet-stream',
         };
         const uploadUrl = `${contentURI}${relativePath}:/content`;
-        logger.debug(`Upload file to ${relativePath} with size ${content.size} with mime ${mimeType} via PUT.`);
         const updateStatus = await this.executeGQL(uploadUrl, options);
-        logger.debug(`Upload file to ${relativePath} via PUT. Time taken ${performance.now()-start}.`);
+        logger.debug(`Upload file to ${relativePath} via PUT having response of ${JSON.stringify(updateStatus)}. Time taken ${performance.now()-start}.`);
         return updateStatus;
     };
 
@@ -253,21 +256,21 @@ class Sharepoint {
         const createdUploadSession = await this.createUploadSession(sp, file, dest, filename, isFloodgate);
         const status = {};
         if (createdUploadSession) {
-            const uploadSessionUrl = createdUploadSession.uploadUrl;
-            if (!uploadSessionUrl) {
+            if (!createdUploadSession.uploadUrl) {
+                status.isLocked = createdUploadSession.isLocked;
                 return status;
             }
-            status.sessionUrl = uploadSessionUrl;
-            const uploadedFile = await this.uploadFile(sp, uploadSessionUrl, file);
+            
+            status.sessionUrl = createdUploadSession.uploadUrl;
+            const uploadedFile = await this.uploadFile(sp, createdUploadSession.uploadUrl, file);
             if (!uploadedFile) {
                 return status;
             }
             if (uploadedFile.ok) {
                 status.uploadedFile = await uploadedFile.json();
                 status.success = true;
-            } else if (uploadedFile.status === 423) {
-                status.locked = true;
             }
+            status.locked = this.isLocked(uploadedFile.status);
         }
         return status;
     }
@@ -327,24 +330,26 @@ class Sharepoint {
         const contentURI = isFloodgate && isFloodgateLockedFile ? fgBaseURI : baseURI;
         const copyStatusInfo = await this.fetchWithRetry(`${contentURI}${srcPath}:/copy?@microsoft.graph.conflictBehavior=replace`, options);
         const statusUrl = copyStatusInfo.headers.get('Location');
-        let copySuccess = false;
+        let copyStatus = {success: false, locked: false };
         let copyStatusJson = {};
         if (!statusUrl) {
             logger.info(`Copy of ${srcPath} returned ${copyStatusInfo?.status} with no followup URL`);
         }
-        while (statusUrl && !copySuccess && copyStatusJson.status !== 'failed') {
+        while (statusUrl && !copyStatus.success && copyStatusJson.status !== 'failed') {
             // eslint-disable-next-line no-await-in-loop
             const status = await this.fetchWithRetry(statusUrl);
             if (status.ok) {
                 // eslint-disable-next-line no-await-in-loop
                 copyStatusJson = await status.json();
-                copySuccess = copyStatusJson.status === 'completed';
+                copyStatus.success = copyStatusJson.status === 'completed';
+                copyStatus.locked = copyStatusJson.error?.innerError?.code === 'resourceLocked';
             }
         }
-        return copySuccess;
+        return copyStatus;
     }
 
     async saveFile(file, dest, isFloodgate) {
+        let uploadFileStatus = {};
         try {
             const folder = this.getFolderFromPath(dest);
             const filename = this.getFileNameFromPath(dest);
@@ -359,7 +364,7 @@ class Sharepoint {
                 await this.renameFile(spFileUrl, lockedFileNewName);
                 const newLockedFilePath = `${folder}/${lockedFileNewName}`;
                 const copyFileStatus = await this.copyFile(newLockedFilePath, folder, filename, isFloodgate, true);
-                if (copyFileStatus) {
+                if (copyFileStatus.success) {
                     uploadFileStatus = await this.createSessionAndUploadFile(sp, file, dest, filename, isFloodgate);
                     if (uploadFileStatus.success) {
                         await this.deleteFile(sp, `${baseURI}${newLockedFilePath}`);
@@ -373,7 +378,7 @@ class Sharepoint {
         } catch (error) {
             return { success: false, path: dest, errorMsg: error.message };
         }
-        return { success: false, path: dest };
+        return { success: false, locked: uploadFileStatus.locked, path: dest };
     }
 
     async getExcelTable(excelPath, tableName) {
@@ -381,8 +386,8 @@ class Sharepoint {
         const itemId = await this.getItemId(sp.api.file.get.baseURI, excelPath);
         if (itemId) {
             const tableJson = await this.executeGQL(`${sp.api.excel.get.baseItemsURI}/${itemId}/workbook/tables/${tableName}/rows`);
-            return !tableJson?.value ? [] :
-                tableJson.value
+            return !tableJson?.json?.value ? [] :
+                tableJson.json.value
                     .filter((e) => e.values?.find((rw) => rw.find((col) => col)))
                     .map((e) => e.values);
         }
@@ -424,46 +429,14 @@ class Sharepoint {
         return {};
     }
 
-    // fetch-with-retry added to check for Sharepoint RateLimit headers and 429 errors and to handle them accordingly.
-    async fetchWithRetry(apiUrl, options, retryCounts) {
-        let retryCount = retryCounts || 0;
+    async fetchWithRetry(apiUrl, options, callOptions = {}) {
         const logger = getAioLogger();
-        return new Promise((resolve, reject) => {
-            const currentTime = Date.now();
-            if (retryCount > NUM_REQ_THRESHOLD) {
-                reject();
-            } else if (nextCallAfter !== 0 && currentTime < nextCallAfter) {
-                setTimeout(() => this.fetchWithRetry(apiUrl, options, retryCount)
-                    .then((newResp) => resolve(newResp))
-                    .catch((err) => reject(err)), nextCallAfter - currentTime);
-            } else {
-                retryCount += 1;
-                fetch(apiUrl, options).then((resp) => {
-                    this.logHeaders(resp);
-                    const retryAfter = resp.headers.get('ratelimit-reset') || resp.headers.get('retry-after') || 0;
-                    if ((resp.headers.get('test-retry-status') === TOO_MANY_REQUESTS) || (resp.status === TOO_MANY_REQUESTS)) {
-                        nextCallAfter = Date.now() + retryAfter * 1000;
-                        logger.info(`Retry ${nextCallAfter}`);
-                        this.fetchWithRetry(apiUrl, options, retryCount)
-                            .then((newResp) => resolve(newResp))
-                            .catch((err) => reject(err));
-                    } else {
-                        nextCallAfter = retryAfter ? Math.max(Date.now() + retryAfter * 1000, nextCallAfter) : nextCallAfter;
-                        resolve(resp);
-                    }
-                }).catch((err) => {
-                    logger.warn(`Connection error ${apiUrl} with ${JSON.stringify(err)}`);
-                    if (err && SP_CONN_ERR_LST.includes(err.code) && retryCount < NUM_REQ_THRESHOLD) {
-                        logger.info(`Retry ${SP_CONN_ERR_LST}`);
-                        nextCallAfter = Date.now() + RETRY_ON_CF * 1000;
-                        return this.fetchWithRetry(apiUrl, options, retryCount)
-                            .then((newResp) => resolve(newResp))
-                            .catch((err2) => reject(err2));
-                    }
-                    return reject(err);
-                });
-            }
-        });
+        if ( callOptions?.noRetry ) {
+            return executeRequest(apiUrl, options, 1);
+         } else if ( callOptions?.donotRetryLockedFiles ) {
+            return executeRequest(apiUrl, options, undefined, undefined, [409, 423]);
+        }
+        return executeRequest(apiUrl, options);
     }
 
     getHeadersStr(response) {

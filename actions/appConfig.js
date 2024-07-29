@@ -78,6 +78,7 @@ class AppConfig {
         this.configMap.bulkPreviewCheckInterval = parseInt(params.bulkPreviewCheckInterval || '30', 10);
         this.configMap.maxBulkPreviewChecks = parseInt(params.maxBulkPreviewChecks || '30', 10);
         this.configMap.enablePreviewPublish = this.getJsonFromStr(params.enablePreviewPublish, []);
+        this.configMap.deleteRootPath = params.deleteRootPath || '/temp';
         this.extractPrivateKey();
 
         payload.ext = {
@@ -136,6 +137,11 @@ class AppConfig {
     }
 
     getPromoteIgnorePaths() {
+        const pips = this.getPayload().promoteIgnorePaths;
+        return [...pips, '/.milo', '/.helix', '/metadata.xlsx', '*/query-index.xlsx'];
+    }
+
+    getDeleteIgnorePaths() {
         const pips = this.getPayload().promoteIgnorePaths;
         return [...pips, '/.milo', '/.helix', '/metadata.xlsx', '*/query-index.xlsx'];
     }

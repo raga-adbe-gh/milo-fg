@@ -21,7 +21,9 @@ const {
 } = require('../utils');
 const FgStatus = require('../fgStatus');
 const FgAction = require('../fgAction');
+const BatchManager = require('../batchManager');
 const AppConfig = require('../appConfig');
+const FgDeleteActionHelper = require('../fgDeleteActionHelper');
 
 async function main(params) {
     logMemUsage();
@@ -56,22 +58,21 @@ async function main(params) {
             statusMessage: respPayload
         });
 
-        const sharepoint = new Sharepoint(appConfig);
-        const deleteStatus = await sharepoint.deleteFloodgateDir();
-        respPayload = deleteStatus === false ?
-            'Error occurred when deleting content. Check project excel sheet for additional information.' :
-            'Delete action was completed';
+        const fgDeleteActionHelper = new FgDeleteActionHelper();
+        const batchManager = new BatchManager({ key: DELETE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }), batchConfig: appConfig.getBatchConfig() });
+        await batchManager.init();
+        respPayload = await fgDeleteActionHelper.createBatch(batchManager, appConfig);
 
         await fgStatus.updateStatusToStateLib({
-            status: deleteStatus === false ? FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR : FgStatus.PROJECT_STATUS.COMPLETED,
-            statusMessage: respPayload
+            status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
+            statusMessage: respPayload,
+            batchesInfo: batchManager.getBatchesInfo()
         });
+        logger.info(respPayload);
 
-        const { startTime: startDelete, endTime: endDelete } = fgStatus.getStartEndTime();
-        const excelValues = [['DELETE', toUTCStr(startDelete), toUTCStr(endDelete), respPayload]];
-
-        await sharepoint.updateExcelTable(projectExcelPath, 'DELETE_STATUS', excelValues);
-        logger.info('Project excel file updated with delete status.');
+        // Finalize and For Delete to Process
+        await batchManager.finalizeInstance(appConfig.getPassthruParams());
+        logger.info('Instance finalized and started');
     } catch (err) {
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,

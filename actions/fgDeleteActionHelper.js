@@ -26,8 +26,8 @@ const DELAY_TIME_PROMOTE = 3000;
 
 class FgPromoteActionHelper {
     /**
-     * Find all files in the FG tree to promote. Add to batches.
-     * @param {BatchManager} batchManager - Instead of BatchManager
+     * Find all files in the FG tree to delete. Add to batches.
+     * @param {BatchManager} batchManager - Stores and Manages Batch Information
      * @param {AppConfig} appConfig - Application config with payload
      * @returns N/A
      */
@@ -35,16 +35,17 @@ class FgPromoteActionHelper {
         const logger = getAioLogger();
         const sp = appConfig.getSpConfig();
         const sharepoint = new Sharepoint(appConfig);
-        const promoteIgnoreList = appConfig.getPromoteIgnorePaths();
-        logger.info(`Promote ignore list: ${promoteIgnoreList}`);
+        const deleteIgnoreList = appConfig.getDeleteIgnorePaths();
+        logger.info(`Delete ignore list: ${deleteIgnoreList}`);
 
-        // Temporarily restricting the iteration for promote to under /drafts folder only
+        // Temporarily restricting the iteration for delete to under /drafts folder only
         return sharepoint.findAndBatchFiles(
             sp.api.file.get.fgBaseURI,
             (appConfig && appConfig.isDraftOnly()) ? ['/drafts/raga/test2mb/a'] : ['/drafts/raga/test2mb/a'],
-            promoteIgnoreList,
+            deleteIgnoreList,
             sp.api.file.download.baseURI,
-            batchManager);
+            batchManager
+        );
     }
 
     /**

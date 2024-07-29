@@ -17,9 +17,10 @@
 
 const { Headers } = require('node-fetch');
 const fetch = require('node-fetch');
-const { getAioLogger } = require('./utils');
+const { isFilePatternMatched, getAioLogger } = require('./utils');
 const SharepointAuth = require('./sharepointAuth');
 
+const MAX_CHILDREN = 5000;
 const SP_CONN_ERR_LST = ['ETIMEDOUT', 'ECONNRESET'];
 const APP_USER_AGENT = 'NONISV|Adobe|MiloFloodgate/0.1.0';
 const BATCH_REQUEST_LIMIT = 20;
@@ -135,7 +136,7 @@ class Sharepoint {
     }
 
     async getFile(doc) {
-        if (doc && doc.sp && doc.sp.status === 200) {
+        if (doc?.sp?.status === 200) {
             const response = await this.fetchWithRetry(doc.sp.fileDownloadUrl);
             return response.blob();
         }
@@ -380,6 +381,7 @@ class Sharepoint {
         const fgRegExp = new RegExp(fgDirPattern);
         logger.info(fgRegExp);
         if (fgRegExp.test(sp.api.file.update.fgBaseURI)) {
+            logger.info(`Deleteing Root Path deleteRootPath`);
             const temp = '/temp';
             const finalBaserURI = `${sp.api.file.delete.fgBaseURI}${temp}`;
             logger.info(`Deleting the folder ${finalBaserURI} `);
@@ -464,6 +466,45 @@ class Sharepoint {
         const logStr = `Status is ${response.status} with headers ${hdrStr}`;
 
         if (logStr.toUpperCase().indexOf('RATE') > 0 || logStr.toUpperCase().indexOf('RETRY') > 0) logger.info(logStr);
+    }
+
+    /**
+     * Iteratively finds all files under a specified root folder. Add them to batches
+     */
+    async findAndBatchFiles(spURI, folders, ignoreList, downloadBaseURI, batchManager) {
+        const logger = getAioLogger();
+        const rootPath = spURI.split(':').pop();
+        const pPathRegExp = new RegExp(`.*:${rootPath}`);
+        const options = await this.getAuthorizedRequestOption({ method: 'GET' });
+
+        while (folders.length !== 0) {
+            const uri = `${spURI}${folders.shift()}:/children?$top=${MAX_CHILDREN}`;
+            // eslint-disable-next-line no-await-in-loop
+            const res = await this.fetchWithRetry(uri, options);
+            if (res.ok) {
+                // eslint-disable-next-line no-await-in-loop
+                const json = await res.json();
+                // eslint-disable-next-line no-await-in-loop
+                const driveItems = json.value;
+                for (let di = 0; di < driveItems?.length; di += 1) {
+                    const item = driveItems[di];
+                    const itemPath = `${item.parentReference.path.replace(pPathRegExp, '')}/${item.name}`;
+                    if (!isFilePatternMatched(itemPath, ignoreList)) {
+                        if (item.folder) {
+                            // it is a folder
+                            folders.push(itemPath);
+                        } else {
+                            const downloadUrl = `${downloadBaseURI}/${item.id}/content`;
+                            const mimeType = item.file?.mimeType;
+                            // eslint-disable-next-line no-await-in-loop
+                            await batchManager.addFile({ fileDownloadUrl: downloadUrl, filePath: itemPath, mimeType });
+                        }
+                    } else {
+                        logger.info(`Ignored from promote: ${itemPath}`);
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -120,6 +120,7 @@ function logMemUsageIter() {
 }
 
 function getInstanceKey(params) {
+    getAioLogger().info(`Instace To Generate For ${params?.fgRootFolder}`);
     return params?.fgRootFolder?.replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
 }
 

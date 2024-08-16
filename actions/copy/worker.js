@@ -60,6 +60,7 @@ async function main(params) {
         const project = new Project({ sharepoint });
         const fgCopyActionHelper = new FgCopyActionHelper();
         const helixUtils = new HelixUtils(appConfig);
+        const spConfig = await appConfig.getSpConfig();
         const projectDetail = await project.getProjectDetails(projectExcelPath);
 
         respPayload = 'Injecting sharepoint data';
@@ -77,7 +78,7 @@ async function main(params) {
             statusMessage: respPayload
         });
 
-        respPayload = await fgCopyActionHelper.floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor, { sharepoint, helixUtils });
+        respPayload = await fgCopyActionHelper.floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor, { sharepoint, helixUtils, spConfig });
     } catch (err) {
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,

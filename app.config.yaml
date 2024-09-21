@@ -27,6 +27,8 @@ application:
           maxBulkPreviewChecks: $MAX_BULK_PREVIEW_CHECKS
           skipInProgressCheck: $SKIP_INPROGRESS_CHECK
           enablePreviewPublish: $ENABLE_PREVEW_PUBLISH
+          deleteRootPath: $DELETE_ROOT_PATH
+          maxDeleteFilesPerBatch: $MAX_DELETE_FILES_PER_BATCH
         actions:
           copy:
             function: actions/copy/copy.js
@@ -49,12 +51,24 @@ application:
             runtime: nodejs:16
             inputs:
               LOG_LEVEL: debug
-          delete-worker:
-            function: actions/delete/worker.js
+          delete-create-batch:
+            function: actions/delete/createBatch.js
             web: 'no'
             runtime: nodejs:16
             inputs:
               LOG_LEVEL: debug
+            limits:
+              timeout: 1900000
+              memory: 1024
+          delete-trigger-n-track:
+            function: actions/delete/triggerNTrack.js
+            web: 'no'
+            runtime: nodejs:16
+            inputs:
+              LOG_LEVEL: debug
+            limits:
+              timeout: 600000
+              concurrency: 1
           promote:
             function: actions/promote/promote.js
             web: 'yes'
@@ -126,3 +140,6 @@ application:
           everyMinRule:
             trigger: everyMin
             action: promote-trigger-n-track
+          everyMinDeleteRule:
+            trigger: everyMin
+            action: delete-trigger-n-track

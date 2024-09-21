@@ -372,25 +372,19 @@ class Sharepoint {
 
     async deleteFloodgateDir() {
         const logger = getAioLogger();
-        logger.info('Deleting content started.');
-        const sp = await this.appConfig.getSpConfig();
-        let deleteSuccess = false;
-
-        const { fgDirPattern } = this.appConfig.getConfig();
-        const fgRegExp = new RegExp(fgDirPattern);
-        logger.info(fgRegExp);
-        if (fgRegExp.test(sp.api.file.update.fgBaseURI)) {
-            const temp = '/temp';
-            const finalBaserURI = `${sp.api.file.delete.fgBaseURI}${temp}`;
-            logger.info(`Deleting the folder ${finalBaserURI} `);
+        const fgFolderToDelete = this.appConfig.getFgFolderToDelete();
+        if (fgFolderToDelete) {
             try {
-                await this.deleteFile(sp, finalBaserURI);
-                deleteSuccess = true;
+                const sp = await this.appConfig.getSpConfig();
+                logger.info(`Deleting folder ${fgFolderToDelete.url}`);
+                await this.deleteFile(sp, fgFolderToDelete.url);
+                return true;
             } catch (error) {
-                logger.info(`Error occurred when trying to delete files of main content tree ${error.message}`);
+                logger.info(`Error occurred when trying to delete ${JSON.stringify(fgFolderToDelete)} ${error.message}`);
             }
+            return false;
         }
-        return deleteSuccess;
+        return true;
     }
 
     async updateExcelTable(excelPath, tableName, values) {

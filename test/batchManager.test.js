@@ -16,9 +16,9 @@
  ************************************************************************* */
 
 describe('BatchManager', () => {
-    Batch = null;
-    BatchManager = null;
-    params = {
+    let Batch = null;
+    let BatchManager = null;
+    const params = {
         key: 'promoteAction',
         instanceKey: 'milo-pink',
         batchConfig: { maxFilesPerBatch: 10, batchFilesPath: '/floodgate' },
@@ -122,7 +122,7 @@ describe('BatchManager', () => {
         };
         const batchManager = new BatchManager(params);
         batchManager.filesSdk = filesSdkMock;
-        await batchManager.writeToBmTracker({ data: 'test' });
+        await batchManager.updateBmTracker({ data: 'test' });
         expect(filesSdkMock.write).toHaveBeenCalledWith(
             '/floodgate/promoteAction/tracker.json',
             JSON.stringify({
@@ -209,13 +209,13 @@ describe('BatchManager', () => {
         // Arrange
         const batchManager = new BatchManager(params);
         await batchManager.init({});
-        const writeToBmTrackerMock = jest.spyOn(batchManager, 'writeToBmTracker');
+        const updateBmTrackerMock = jest.spyOn(batchManager, 'updateBmTracker');
 
         // Act
         await batchManager.markComplete();
 
         // Assert
-        expect(writeToBmTrackerMock).toHaveBeenCalledWith({
+        expect(updateBmTrackerMock).toHaveBeenCalledWith({
             [`${batchManager.instanceKey}`]: {
                 done: true,
                 proceed: false,

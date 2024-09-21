@@ -15,13 +15,16 @@
 * from Adobe.
 ************************************************************************* */
 const openwhisk = require('openwhisk');
-const Sharepoint = require('../sharepoint');
 const {
-    toUTCStr, getAioLogger, logMemUsage, DELETE_ACTION
+    getAioLogger, logMemUsage, getInstanceKey, DELETE_ACTION
 } = require('../utils');
 const FgStatus = require('../fgStatus');
 const FgAction = require('../fgAction');
 const AppConfig = require('../appConfig');
+const BatchManager = require('../batchManager');
+const HelixUtils = require('../helixUtils');
+const FgDeleteActionHelper = require('../fgDeleteActionHelper');
+const Sharepoint = require('../sharepoint');
 
 async function main(params) {
     logMemUsage();
@@ -32,47 +35,55 @@ async function main(params) {
         statParams: ['fgRootFolder', 'projectExcelPath'],
         actParams: ['adminPageUri'],
     };
-    const ow = openwhisk();
 
     // Initialize action
+    const ow = openwhisk();
     const appConfig = new AppConfig(params);
     const fgAction = new FgAction(DELETE_ACTION, appConfig);
     fgAction.init({ ow, skipUserDetails: true });
+
     const { fgStatus } = fgAction.getActionParams();
-    const { projectExcelPath } = appConfig.getPayload();
+    const { projectExcelPath, fgColor } = appConfig.getPayload();
+    const fgDeleteActionHelper = new FgDeleteActionHelper();
+    const sharepoint = new Sharepoint(appConfig);
 
     try {
         // Validations
         const vStat = await fgAction.validateAction(valParams);
-        if (vStat && vStat.code !== 200) {
+        if (vStat?.code !== 200) {
             return vStat;
         }
 
         respPayload = 'Started deleting content';
-        logger.info(respPayload);
+        const siteFgRootPath = appConfig.getSiteFgRootPath();
+        const batchManager = new BatchManager({ key: DELETE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }), batchConfig: appConfig.getDeleteBatchConfig() });
+        await batchManager.init();
+        // For current cleanup files before starting
+        await batchManager.cleanupFiles();
 
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.IN_PROGRESS,
             statusMessage: respPayload
         });
 
-        const sharepoint = new Sharepoint(appConfig);
-        const deleteStatus = await sharepoint.deleteFloodgateDir();
-        respPayload = deleteStatus === false ?
-            'Error occurred when deleting content. Check project excel sheet for additional information.' :
-            'Delete action was completed';
-
-        await fgStatus.updateStatusToStateLib({
-            status: deleteStatus === false ? FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR : FgStatus.PROJECT_STATUS.COMPLETED,
-            statusMessage: respPayload
-        });
-
-        const { startTime: startDelete, endTime: endDelete } = fgStatus.getStartEndTime();
-        const excelValues = [['DELETE', toUTCStr(startDelete), toUTCStr(endDelete), respPayload]];
-
-        await sharepoint.updateExcelTable(projectExcelPath, 'DELETE_STATUS', excelValues);
-        logger.info('Project excel file updated with delete status.');
+        const helixUtils = new HelixUtils(appConfig);
+        const filesToUnpublish = await helixUtils.getFilesToUnpublish(fgColor);
+        logger.info(`List of files to unpublish are ${filesToUnpublish?.length}`);
+        if (!filesToUnpublish) {
+            throw new Error('Unable to get items to unpublish! Please retry after sometime.');
+        } else if (filesToUnpublish.length > 0) {
+            await filesToUnpublish.reduce(async (acc, curr) => {
+                await acc;
+                await batchManager.addFile(curr);
+            }, Promise.resolve());
+            logger.info('Finalize instance');
+            await batchManager.finalizeInstance(appConfig.getPassthruParams());
+        } else {
+            await fgDeleteActionHelper.completeProcess(projectExcelPath, batchManager, [], fgStatus, sharepoint);
+        }
+        logger.info('Batching completed');
     } catch (err) {
+        await fgDeleteActionHelper.completeProcess();
         await fgStatus.updateStatusToStateLib({
             status: FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR,
             statusMessage: err.message

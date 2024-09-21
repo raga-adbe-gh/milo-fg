@@ -74,7 +74,8 @@ describe('sharepoint', () => {
         }),
         getConfig: () => ({
             fgDirPattern: 'pink'
-        })
+        }),
+        getFgFolderToDelete: () => ({ suffix: '/drafts', url: 'http://example/com/drafts' }),
     };
 
     beforeAll(() => {

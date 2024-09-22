@@ -380,7 +380,7 @@ class Sharepoint {
                 await this.deleteFile(sp, fgFolderToDelete.url);
                 return true;
             } catch (error) {
-                logger.info(`Error occurred when trying to delete ${JSON.stringify(fgFolderToDelete)} ${error.message}`);
+                logger.info(`Error occurred when trying to delete ${fgFolderToDelete} ${error.message}`);
             }
             return false;
         }

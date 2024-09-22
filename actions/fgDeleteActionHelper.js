@@ -81,7 +81,6 @@ class FgDeleteActionHelper {
         const { startTime: startDelete, endTime: endDelete } = fgStatus.getStartEndTime();
 
         const excelValues = [['DELETE', toUTCStr(startDelete), toUTCStr(endDelete), excelStatusMessage]];
-        logger.info(`Excel details ${JSON.stringify(excelValues)}`);
         await sharepoint.updateExcelTable(projectExcelPath, 'DELETE_STATUS', excelValues);
     }
 }

@@ -64,7 +64,12 @@ describe('sharepoint', () => {
                     },
                     update: {
                         fgBaseURI,
-                    }
+                    },
+                    upload: {
+                        baseURI,
+                        fgBaseURI,
+                        method: 'PUT',
+                    },
                 },
                 excel: {
                     get: { baseItemsURI: 'https://gql/base' },
@@ -83,8 +88,10 @@ describe('sharepoint', () => {
             getAioLogger: () => ({
                 info: jest.fn(),
                 debug: jest.fn(),
+                warn: jest.fn(),
                 error: jest.fn(),
             }),
+            delay: () => {},
         }));
 
         jest.mock('../actions/sharepointAuth', () => (
@@ -111,16 +118,14 @@ describe('sharepoint', () => {
         sharepoint.fetchWithRetry = jest.fn().mockResolvedValue({
             ok: false
         });
-        await expect(sharepoint.executeGQL('url', {})).rejects.toThrowError(
-            'Failed to execute url'
-        );
+        await expect(await sharepoint.executeGQL('url', {}).ok).not.toBeTruthy();
     });
 
     // The 'getItemId' method throws an error if the item ID is not found.
     it('should get item from path', async () => {
         const sharepoint = new Sharepoint(appConfig);
         sharepoint.executeGQL = jest.fn().mockResolvedValue({
-            id: 10
+            json: { id: 10 }
         });
         const id = await sharepoint.getItemId(
             `${appConfig.getFgSite()}/driveid:root`,
@@ -195,13 +200,13 @@ describe('sharepoint', () => {
         );
     });
 
-    it('should return a blob object when given a valid download URL and authorized request options', async () => {
+    it('should return a buffer object when given a valid download URL and authorized request options', async () => {
         // Mock the necessary dependencies
         const sharepoint = new Sharepoint(appConfig);
         const downloadUrl = '/file/download';
 
         // Mock the fetchWithRetry method
-        sharepoint.fetchWithRetry = jest.fn().mockResolvedValue({ blob: () => 'Test' });
+        sharepoint.fetchWithRetry = jest.fn().mockResolvedValue({ buffer: () => 'Test' });
 
         // Invoke the method and assert the result
         const result = await sharepoint.getFileUsingDownloadUrl(downloadUrl);
@@ -290,7 +295,7 @@ describe('sharepoint', () => {
             json: false,
             method: spConfig.api.file.upload.method
         });
-        expect(sharepoint.fetchWithRetry).toHaveBeenCalledWith(uploadUrl, options);
+        expect(sharepoint.fetchWithRetry).toHaveBeenCalledWith(uploadUrl, options, { donotRetryLockedFiles: true });
         expect(result).toEqual(response);
     });
 
@@ -419,10 +424,10 @@ describe('sharepoint', () => {
         const isFloodgateLockedFile = false;
 
         // Invoke method
-        const copySuccess = await sharepoint.copyFile(srcPath, destinationFolder, newName, isFloodgate, isFloodgateLockedFile);
+        const copyStatus = await sharepoint.copyFile(srcPath, destinationFolder, newName, isFloodgate, isFloodgateLockedFile);
 
         // Assertions
-        expect(copySuccess).toBe(true);
+        expect(copyStatus.success).toBe(true);
     });
 
     it('should save', async () => {
@@ -441,7 +446,7 @@ describe('sharepoint', () => {
         jest.spyOn(sharepoint, 'releaseUploadSession').mockResolvedValueOnce({});
         jest.spyOn(sharepoint, 'getLockedFileNewName').mockResolvedValueOnce(filename);
         jest.spyOn(sharepoint, 'renameFile').mockResolvedValueOnce(filename);
-        jest.spyOn(sharepoint, 'copyFile').mockResolvedValueOnce({});
+        jest.spyOn(sharepoint, 'copyFile').mockResolvedValueOnce({success: true});
         jest.spyOn(sharepoint, 'deleteFile').mockResolvedValueOnce({});
 
         // Invoke the method
@@ -454,7 +459,7 @@ describe('sharepoint', () => {
     it('should return a list of rows when tableJson value is truthy', async () => {
         const sharepoint = new Sharepoint(appConfig);
         jest.spyOn(sharepoint, 'getItemId').mockResolvedValueOnce('itemId');
-        jest.spyOn(sharepoint, 'executeGQL').mockResolvedValueOnce({ value: [{ values: [['data']] }] });
+        jest.spyOn(sharepoint, 'executeGQL').mockResolvedValueOnce({ json: { value: [{ values: [['data']] }] }});
 
         const excelPath = '/path/to/excel/file.xlsx';
         const tableName = 'Table1';
@@ -536,8 +541,8 @@ describe('sharepoint', () => {
         const mockResponse = {
             status: 429,
             headers: {
-                'ratelimit-reset': '1',
-                'retry-after': '1',
+                'ratelimit-reset': '2',
+                'retry-after': '3',
                 'test-retry-status': '429'
             }
         };
@@ -567,5 +572,16 @@ describe('sharepoint', () => {
         expect(response.status).toBe(200);
         const data = await response.json();
         expect(data).toEqual({});
+    });
+
+    it('uploads a file and returns update status', async () => {
+        const sharepoint = new Sharepoint(appConfig);
+        jest.spyOn(sharepoint, 'executeGQL').mockResolvedValueOnce({ 'id': 'SP10' });
+        const options = {
+            content: Buffer.from('Testing'),
+            mime: 'text/plain',
+        }
+        const response = await sharepoint.uploadFileByPath(appConfig.getSpConfig(), '/drafts/file.txt', options);
+        expect(response.id).toEqual('SP10');
     });
 });

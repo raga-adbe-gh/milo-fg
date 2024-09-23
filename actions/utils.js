@@ -194,6 +194,40 @@ function isFilePatternMatched(filePath, patterns) {
     return isFilePathWithWildcard(filePath, patterns);
 }
 
+async function inParallel(elements, processElement, logger, ignoreResults = true, passParameter = null, numParallel = 5) {
+    const queue = [];
+    queue.push(...elements);
+    const workers = [];
+    const workersLimit = Math.min(elements.length, numParallel);
+
+    const processQueue = async () => {
+        const result = [];
+        let element = queue.pop();
+        while (element) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                const exec = await processElement(element, passParameter);
+                if (!ignoreResults && exec) {
+                    result.push(exec);
+                }
+            } catch (error) {
+                logger.error(`Error processing element ${element}: ${error.message}\n`);
+            }
+            element = queue.pop();
+        }
+        return result;
+    };
+
+    for (let i = 0; i < workersLimit; i += 1) {
+        workers.push(processQueue());
+    }
+    if (ignoreResults) {
+        return Promise.all(workers);
+    }
+    const results = await Promise.all(workers);
+    return results.reduce((prev, curr) => prev.concat(curr), []);
+};
+
 module.exports = {
     errorResponse,
     successResponse,
@@ -213,5 +247,6 @@ module.exports = {
     toUTCStr,
     isFilePathWithWildcard,
     isFilePatternMatched,
-    strToBool
+    strToBool,
+    inParallel
 };

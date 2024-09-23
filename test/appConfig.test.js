@@ -26,7 +26,7 @@ jest.mock('crypto', () => ({
 
 let params = {
     spToken: 'eyJ0eXAi',
-    adminPageUri: 'https://floodgateui--milo--adobecom.hlx.page/tools/floodgate?ref=floodgateui&repo=milo&owner=adobecom&host=milo.adobe.com&project=Milo' + 
+    adminPageUri: 'https://floodgateui--milo--adobecom.hlx.page/tools/floodgate?ref=floodgateui&repo=milo&owner=adobecom&host=milo.adobe.com&project=Milo' +
     '&referrer=https%3A%2F%2Fadobe.sharepoint.com%2F%3Ax%3A%2Fr%2Fsites%2Fadobecom%2F_layouts%2F15%2FDoc.aspx' +
     '%3Fsourcedoc%3D%257B442C005E-8094-4EB8-A78F-48BF427A04ED%257D%26file%3DBook5.xlsx%26action%3Ddefault%26mobileredirect%3Dtrue',
     projectExcelPath: '/drafts/floodgate/projects/raga/fgtest1.xlsx',
@@ -38,7 +38,8 @@ let params = {
     doPublish: 'false',
     driveId: 'drive',
     fgColor: 'purple',
-    draftsOnly: 'true'
+    draftsOnly: 'true',
+    spSite: 'https://graph.microsoft.com/v1.0/sites/site.sharepoint.com,d21',
 };
 // Add config
 params = {
@@ -125,32 +126,27 @@ describe('appConfig', () => {
         appConfig.setAppConfig({ ...params, enableDelete: 'true' });
         expect(appConfig.getEnablePromote()).toBeFalsy();
         expect(appConfig.getEnableDelete()).toBeTruthy();
-        appConfig.removePayload();
     });
 
     test('Test enable promote action flags', () => {
         appConfig.setAppConfig({ ...params, enablePromote: 'true' });
         expect(appConfig.getEnablePromote()).toBeTruthy();
         expect(appConfig.getEnableDelete()).toBeFalsy();
-        appConfig.removePayload();
     });
 
     test('Test enable delete and promote action flags', () => {
         appConfig.setAppConfig({ ...params, enableDelete: true, enablePromote: 'true' });
         expect(appConfig.getEnablePromote()).toBeTruthy();
         expect(appConfig.getEnableDelete()).toBeTruthy();
-        appConfig.removePayload();
     });
 
     test('test sptoken in param', () => {
         appConfig.setAppConfig(params);
         expect(appConfig.getPayload().spToken).toBe(params.spToken);
-        appConfig.removePayload();
     });
 
     test('test sptoken in header', () => {
         appConfig.setAppConfig({ ...params, __ow_headers: { 'user-token': 'usertoken' } });
         expect(appConfig.getPayload().spToken).toBe('usertoken');
-        appConfig.removePayload();
     });
 });

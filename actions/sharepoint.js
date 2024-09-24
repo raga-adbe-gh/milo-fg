@@ -260,7 +260,6 @@ class Sharepoint {
                 status.isLocked = createdUploadSession.isLocked;
                 return status;
             }
-            
             status.sessionUrl = createdUploadSession.uploadUrl;
             const uploadedFile = await this.uploadFile(sp, createdUploadSession.uploadUrl, file);
             if (!uploadedFile) {

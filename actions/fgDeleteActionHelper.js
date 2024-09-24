@@ -32,16 +32,26 @@ class FgDeleteActionHelper {
         const { fgColor } = appConfig.getPayload();
         const currentBatch = await this.getBatch(batchManager, batchInstanceInfo);
         const batchFilesContent = await currentBatch.getFiles();
+
         if (helixUtils.canBulkPreviewPublish(true, fgColor)) {
             const paths = batchFilesContent.map((e) => e.file.path);
-            const unpublishStatuses = await helixUtils.bulkPreviewPublish(paths, helixUtils.getOperations().UNPUBLISH, { isFloodgate: true, fgColor });
-            logger.debug(`Unpublish response is ${JSON.stringify(unpublishStatuses)}`);
-            const failedUnpublishings = unpublishStatuses.filter((status) => !status.success)
+            const unpublishStatuses = await helixUtils.bulkPreviewPublish(
+                paths,
+                helixUtils.getOperations().UNPUBLISH,
+                { isFloodgate: true, fgColor }
+            );
+
+            logger.debug(`Unpublish response: ${JSON.stringify(unpublishStatuses)}`);
+
+            const failedUnpublishings = unpublishStatuses
+                .filter((status) => !status.success)
                 .map((status) => status.path);
+
             if (failedUnpublishings.length > 0) {
                 currentBatch.writeResults({ failedUnpublishings });
             }
         }
+
         batchInstanceInfo.done = true;
     }
 
@@ -50,21 +60,23 @@ class FgDeleteActionHelper {
         let status = FgStatus.PROJECT_STATUS.COMPLETED;
         let statusMessage = 'Delete action was completed.';
         let excelStatusMessage = statusMessage;
+
         await batchesInfo.reduce(async (prev, curr) => {
             await prev;
             batchManager.initBatch({ batchNumber: curr.batchNumber });
             const batch = await batchManager.getCurrentBatch();
             const results = await batch.getResultsContent();
+
             if (results?.failedUnpublishings?.length > 0) {
                 failedUnpublishings.push(...results.failedUnpublishings);
             }
         }, Promise.resolve());
 
-        // Delete folder if all were unpublished
+        // Delete folder if all files were unpublished
         if (failedUnpublishings.length) {
             status = FgStatus.PROJECT_STATUS.COMPLETED_WITH_ERROR;
             statusMessage = 'Failed to unpublish files. Check excel for details.';
-            excelStatusMessage = `${failedUnpublishings.join(' failed to publish.\n')} failed to publish.\n`;
+            excelStatusMessage = `${failedUnpublishings.join(' failed to unpublish.\n')} failed to unpublish.\n`;
         } else {
             const deleteStatus = await sharepoint.deleteFloodgateDir();
             if (!deleteStatus) {
@@ -74,13 +86,18 @@ class FgDeleteActionHelper {
             }
         }
 
-        await batchManager.markComplete(status !== FgStatus.PROJECT_STATUS.COMPLETED ? failedUnpublishings : [statusMessage]);
+        await batchManager.markComplete(
+            status !== FgStatus.PROJECT_STATUS.COMPLETED ? failedUnpublishings : [statusMessage]
+        );
 
         await fgStatus.updateStatusToStateLib({ status, statusMessage });
 
         const { startTime: startDelete, endTime: endDelete } = fgStatus.getStartEndTime();
 
-        const excelValues = [['DELETE', toUTCStr(startDelete), toUTCStr(endDelete), excelStatusMessage]];
+        const excelValues = [
+            ['DELETE', toUTCStr(startDelete), toUTCStr(endDelete), excelStatusMessage]
+        ];
+
         await sharepoint.updateExcelTable(projectExcelPath, 'DELETE_STATUS', excelValues);
     }
 }

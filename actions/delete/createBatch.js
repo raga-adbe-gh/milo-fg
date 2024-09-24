@@ -56,9 +56,14 @@ async function main(params) {
 
         respPayload = 'Started deleting content';
         const siteFgRootPath = appConfig.getSiteFgRootPath();
-        const batchManager = new BatchManager({ key: DELETE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }), batchConfig: appConfig.getDeleteBatchConfig() });
+        const batchManager = new BatchManager({
+            key: DELETE_ACTION,
+            instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }),
+            batchConfig: appConfig.getDeleteBatchConfig()
+        });
+
         await batchManager.init();
-        // For current cleanup files before starting
+        // Clean up files before starting
         await batchManager.cleanupFiles();
 
         await fgStatus.updateStatusToStateLib({
@@ -68,19 +73,22 @@ async function main(params) {
 
         const helixUtils = new HelixUtils(appConfig);
         const filesToUnpublish = await helixUtils.getFilesToUnpublish(fgColor);
-        logger.info(`List of files to unpublish are ${filesToUnpublish?.length}`);
+        logger.info(`List of files to unpublish: ${filesToUnpublish?.length}`);
+
         if (!filesToUnpublish) {
-            throw new Error('Unable to get items to unpublish! Please retry after sometime.');
+            throw new Error('Unable to get items to unpublish! Please retry after some time.');
         } else if (filesToUnpublish.length > 0) {
             await filesToUnpublish.reduce(async (acc, curr) => {
                 await acc;
                 await batchManager.addFile(curr);
             }, Promise.resolve());
+
             logger.info('Finalize instance');
             await batchManager.finalizeInstance(appConfig.getPassthruParams());
         } else {
             await fgDeleteActionHelper.completeProcess(projectExcelPath, batchManager, [], fgStatus, sharepoint);
         }
+
         logger.info('Batching completed');
     } catch (err) {
         await fgDeleteActionHelper.completeProcess();

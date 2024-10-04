@@ -78,6 +78,8 @@ class AppConfig {
         this.configMap.bulkPreviewCheckInterval = parseInt(params.bulkPreviewCheckInterval || '30', 10);
         this.configMap.maxBulkPreviewChecks = parseInt(params.maxBulkPreviewChecks || '30', 10);
         this.configMap.enablePreviewPublish = this.getJsonFromStr(params.enablePreviewPublish, []);
+        this.configMap.deleteRootPath = params.deleteRootPath;
+        this.configMap.maxDeleteFilesPerBatch = params.maxDeleteFilesPerBatch || 100;
         this.extractPrivateKey();
 
         payload.ext = {
@@ -166,6 +168,13 @@ class AppConfig {
         return {
             batchFilesPath: this.configMap.batchFilesPath,
             maxFilesPerBatch: this.configMap.maxFilesPerBatch,
+        };
+    }
+
+    getDeleteBatchConfig() {
+        return {
+            batchFilesPath: this.configMap.batchFilesPath,
+            maxFilesPerBatch: this.configMap.maxDeleteFilesPerBatch,
         };
     }
 
@@ -282,6 +291,21 @@ class AppConfig {
                 batch: { uri: `${GRAPH_API}/$batch` },
             },
         };
+    }
+
+    getFgFolderToDelete() {
+        const { deleteRootPath, fgDirPattern } = this.getConfig();
+        const { fgRootFolder } = this.getPayload();
+        const fgRegExp = new RegExp(fgDirPattern);
+        const { api: { file: { update: { fgBaseURI } } } } = this.getSpConfig();
+        if (fgRegExp.test(fgRootFolder)) {
+            const suffix = (deleteRootPath || '/tmp').replace(/\/+$/, '');
+            return {
+                suffix,
+                url: `${fgBaseURI}${suffix}`,
+            };
+        }
+        return null;
     }
 }
 

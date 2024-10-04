@@ -17,7 +17,7 @@
 
 const stateLib = require('@adobe/aio-lib-state');
 const crypto = require('crypto');
-const { getAioLogger, COPY_ACTION, DELETE_ACTION } = require('./utils');
+const { getAioLogger, COPY_ACTION } = require('./utils');
 
 const FG_KEY = 'FLOODGATE';
 
@@ -76,29 +76,27 @@ class FgStatus {
         appConfig,
         userDetails
     }) {
+        this.logger = getAioLogger();
         this.appConfig = appConfig;
         this.lastTriggeredBy = userDetails?.oid;
         this.action = action || '';
         this.storeKey = statusKey || this.generateStoreKey(keySuffix) || FG_KEY;
-        this.logger = getAioLogger();
     }
 
     generateStoreKey(keySuffix) {
-        const siteFgRootPath = this.appConfig.getSiteFgRootPath();
+        const siteFgRootPath = decodeURIComponent(this.appConfig.getSiteFgRootPath() || '');
         const { projectExcelPath } = this.appConfig.getPayload();
         let resp = '';
 
         switch (this.action) {
             case COPY_ACTION:
-                resp = `${siteFgRootPath || ''}${projectExcelPath || ''}`;
-                break;
-            case DELETE_ACTION:
-                resp = `${DELETE_ACTION}${siteFgRootPath}`;
+                resp = `${this.action}:${siteFgRootPath}:${projectExcelPath || ''}`;
                 break;
             default:
-                resp = siteFgRootPath;
+                resp = `${this.action}:${siteFgRootPath}`;
         }
         resp += keySuffix || '';
+        this.logger.debug(`Generated key for ${this.action} is ${resp}`);
         return resp;
     }
 

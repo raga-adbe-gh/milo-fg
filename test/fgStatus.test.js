@@ -76,8 +76,8 @@ describe('fgStatus', () => {
             action: 'promoteAction',
             appConfig: appConfigMock,
         });
-        const storeKey = fgStatus2.generateStoreKey('suf');
-        expect(storeKey).toBe('/milo-pinksuf');
+        const storeKey = fgStatus2.generateStoreKey('/suf');
+        expect(storeKey).toBe('promoteAction:/milo-pink/suf');
     });
 
     it('key updated', async () => {

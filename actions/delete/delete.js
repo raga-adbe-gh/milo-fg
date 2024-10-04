@@ -53,7 +53,7 @@ async function main(args) {
             statusMessage: 'Triggering delete action'
         });
         return ow.actions.invoke({
-            name: 'milo-fg/delete-worker',
+            name: 'milo-fg/delete-create-batch',
             blocking: false, // this is the flag that instructs to execute the worker asynchronous
             result: false,
             params: args

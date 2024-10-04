@@ -18,14 +18,14 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const openwhisk = require('openwhisk');
 const filesLib = require('@adobe/aio-lib-files');
-const { getAioLogger, PROMOTE_ACTION } = require('../utils');
+const { getAioLogger } = require('../utils');
 const AppConfig = require('../appConfig');
 const SharepointAuth = require('../sharepointAuth');
 const FgStatus = require('../fgStatus');
 const FgUser = require('../fgUser');
 
 const logger = getAioLogger();
-const TRACKER_RULE = 'everyMinRule';
+const TRACKER_RULES = ['everyMinRule', 'everyMinDeleteRule'];
 
 // Maintainance functions
 async function main(args) {
@@ -36,7 +36,7 @@ async function main(args) {
             deleteFilePath: args.deleteFilePath,
             listFilePath: args.listFilePath,
             dataFile: args.dataFile,
-            stateStoreKey: args.stateStoreKey,
+            stateStore: args.stateStore,
             clearStateStore: args.clearStateStore,
             tracker: args.tracker,
         };
@@ -52,7 +52,7 @@ async function main(args) {
             isUser: await fgUser.isUser(),
         };
 
-        if (!(payload.permissions.isAdmin || payload.permissions.isUser)) {
+        if (!payload.permissions.isAdmin && (params.deleteFilePath || params.clearStateStore || params.tracker)) {
             payload.error = 'Could not determine the user.';
             logger.error(payload);
             return {
@@ -64,13 +64,13 @@ async function main(args) {
         logger.info(`maint action ${JSON.stringify(params)} by ${JSON.stringify(userDetails)}`);
         if (params.listFilePath !== undefined) payload.fileList = await maintAction.listFiles(params.listFilePath);
         if (params.dataFile !== undefined) payload.fileData = await maintAction.dataFile(params.dataFile);
-        if (params.stateStoreKey !== undefined) payload.stateStore = await maintAction.stateStoreKey(params.stateStoreKey);
+        if (params.stateStore !== undefined) payload.stateStore = await maintAction.getStateStore(params.stateStore);
         if (payload.permissions?.isAdmin && params.deleteFilePath !== undefined) payload.deleteStatus = await maintAction.deleteFiles(params.deleteFilePath);
         if (payload.permissions?.isAdmin && params.clearStateStore !== undefined) payload.stateStore = (await maintAction.clearStateStore(params.clearStateStore));
-        if (payload.permissions?.isAdmin && params.tracker !== undefined) payload.tracker = `Tracker enable=${params.tracker} ${(await maintAction.updateTracker({ enable: params.tracker }, ow))}`;
+        if (payload.permissions?.isAdmin && params.tracker !== undefined) payload.tracker = `Tracker enable=${params.tracker} ${(await maintAction.updateTracker(params.tracker, ow))}`;
     } catch (err) {
         logger.error(err);
-        payload.error = err;
+        payload.error = { message: err.message };
     }
 
     return {
@@ -118,39 +118,37 @@ class MaintAction {
         return jsond || rawd?.toString();
     }
 
-    async stateStoreKey(key) {
-        const fgStatus = new FgStatus(this.getActionStatusKey(key));
+    async getStateStore(statusKey) {
+        const fgStatus = new FgStatus({ statusKey });
         const data = await fgStatus.getStatusFromStateLib();
         return data;
     }
 
-    async clearStateStore(key) {
-        const fgStatus = new FgStatus(this.getActionStatusKey(key));
+    async clearStateStore(statusKey) {
+        const fgStatus = new FgStatus({ statusKey });
+        const data = await fgStatus.getStatusFromStateLib();
         await fgStatus.clearState(true);
-        return {};
+        return data;
     }
 
-    getActionStatusKey(key) {
-        // Split by comma (action, statusKey)
-        let action = PROMOTE_ACTION;
-        let statusKey;
-        try {
-            const mtchs = key.match(/(.*?),(.*)/);
-            [, action, statusKey] = mtchs;
-        } catch (err) {
-            logger.error(`Could not parse ${key}`);
-        }
-        return { action, statusKey };
-    }
-
-    async updateTracker({ enable = '' }, ow) {
+    async updateTrackerRule(name, enable, ow) {
         if (enable.toLowerCase() === 'on') {
-            return ow.rules.enable({ name: TRACKER_RULE });
+            return ow.rules.enable({ name });
         }
         if (enable.toLowerCase() === 'off') {
-            return ow.rules.disable({ name: TRACKER_RULE });
+            return ow.rules.disable({ name });
         }
         return 'No Action';
+    }
+
+    async updateTracker(enable, ow) {
+        const trackerResponse = [];
+        await TRACKER_RULES.reduce(async (prev, curr) => {
+            await prev;
+            const resp = await this.updateTrackerRule(curr, enable, ow);
+            trackerResponse.push(`${curr} is ${resp}`);
+        }, Promise.resolve());
+        return trackerResponse.join(', ');
     }
 }
 

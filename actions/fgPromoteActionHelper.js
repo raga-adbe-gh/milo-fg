@@ -173,7 +173,7 @@ class FgPromoteActionHelper {
             if (doPublish) {
                 stepMsg = 'Publishing promoted files.';
                 logger.info(stepMsg);
-                publishStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().LIVE);
+                publishStatuses = await helixUtils.bulkPreviewPublish(prevPaths, helixUtils.getOperations().PUBLISH);
                 stepMsg = 'Completed Publishing for promoted files';
                 logger.info(stepMsg);
             }

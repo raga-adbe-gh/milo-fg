@@ -87,7 +87,7 @@ class Batch {
     }
 
     async getFiles() {
-        logger.info(`get batch files ${this.filesSdk} and ${this.instancePath}`);
+        logger.info(`get batch files from ${this.instancePath}`);
         let fileContents = [];
         if (this.filesSdk && this.instancePath) {
             const dataStr = await this.filesSdk.read(this.batchInfoFile);

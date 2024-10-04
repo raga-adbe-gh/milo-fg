@@ -120,7 +120,8 @@ function logMemUsageIter() {
 }
 
 function getInstanceKey(params) {
-    return params?.fgRootFolder?.replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
+    const path = decodeURIComponent(params?.fgRootFolder || 'default_path').toLowerCase();
+    return path.replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
 }
 
 /**
@@ -145,6 +146,17 @@ function errorResponse(statusCode, message) {
         },
     };
 }
+
+const successResponse = (payload, statusCodeOverride = 200, additionalHeaders = {}) => ({
+    body: {
+        payload
+    },
+    statusCode: statusCodeOverride,
+    headers: {
+        'content-type': 'application/json',
+        ...additionalHeaders,
+    },
+});
 
 function strToArray(val) {
     if (val && typeof val === 'string') {
@@ -218,6 +230,7 @@ async function inParallel(elements, processElement, logger, ignoreResults = true
 
 module.exports = {
     errorResponse,
+    successResponse,
     getAioLogger,
     handleExtension,
     getDocPathFromUrl,

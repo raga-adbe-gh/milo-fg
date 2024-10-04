@@ -20,10 +20,11 @@ const { getAioLogger, delay } = require('./utils');
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 5;
-const JOB_STATUS_CODES = [200, 304];
+const JOB_STATUS_CODES = [200, 204, 304];
 const AUTH_ERRORS = [401, 403];
 const PREVIEW = 'preview';
 const PUBLISH = 'publish';
+const UNPUBLISH = 'publish';
 const LIVE = 'live';
 
 const logger = getAioLogger();
@@ -34,7 +35,11 @@ class HelixUtils {
     }
 
     getOperations() {
-        return { PREVIEW, LIVE };
+        return { PREVIEW, PUBLISH, UNPUBLISH };
+    }
+
+    getHelixApi(operation) {
+        return operation === PREVIEW ? PREVIEW : LIVE;
     }
 
     getRepo(isFloodgate = false, fgColor = 'pink') {
@@ -65,7 +70,7 @@ class HelixUtils {
      * Trigger a preview/publish of the files using the franklin bulk api. Franklin bulk api returns a job id/name which is used to
      * check back the completion of the preview/publish.
      * @param {*} paths Paths of the files that needs to be previewed.
-     * @param {*} operation Preivew or Publish
+     * @param {*} operation Preivew or Publish or Unpublish
      * @param {*} isFloodgate Flag indicating if the preview/publish is for regular or floodgate content
      * @param {*} retryAttempt Iteration number of the retry attempt (Default = 1)
      * @returns List of path with preview/pubish status e.g. [{path:'/draft/file1', success: true}..]
@@ -78,10 +83,12 @@ class HelixUtils {
         try {
             const repo = this.getRepo(isFloodgate, fgColor);
             const urlInfo = this.appConfig.getUrlInfo();
-            const bulkUrl = `https://admin.hlx.page/${operation}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
+            const payload = { forceUpdate: true, paths };
+            if (operation === UNPUBLISH) payload.delete = true;
+            const bulkUrl = `https://admin.hlx.page/${this.getHelixApi(operation)}/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
             const options = {
                 method: 'POST',
-                body: JSON.stringify({ forceUpdate: true, paths }),
+                body: JSON.stringify(payload),
                 headers: new fetch.Headers([['Accept', 'application/json'], ['Content-Type', 'application/json']])
             };
 
@@ -99,9 +106,10 @@ class HelixUtils {
                 // Get job details
                 const jobResp = await response.json();
                 const jobName = jobResp.job?.name;
-                logger.info(`Job details : ${jobName} / ${jobResp.messageId} / ${jobResp.job?.state}`);
+                const jobStatusUrl = jobResp.links?.self;
+                logger.info(`Job details : ${jobName} / ${jobResp.messageId} / ${jobResp.job?.state} with link ${jobStatusUrl}`);
                 if (jobName) {
-                    const jobStatus = await this.bulkJobStatus(jobName, operation, repo);
+                    const jobStatus = await this.bulkJobStatus(jobStatusUrl, repo);
                     prevPubStatuses.forEach((e) => {
                         if (jobStatus[e.path]?.success) {
                             e.success = true;
@@ -120,15 +128,14 @@ class HelixUtils {
 
     /**
      * Checks the preview/publish job status and returns the file statuses
-     * @param {*} jobName Bulk job to be checked
-     * @param {*} operation Job Type (preview/publish)
+     * @param {*} jobStatusUrl Job status fetch url
      * @param {*} repo Repo for which the job was triggered
-     * @param {*} bulkPreviewStatus Accumulated status of the files (default is empty)
+     * @param {*} bulkStatus Accumulated status of the files (default is empty)
      * @param {*} retryAttempt Iteration number of the retry attempt (Default = 1)
      * @returns List of path with preview/pubish status e.g. ['/draft/file1': {success: true}..]
      */
-    async bulkJobStatus(jobName, operation, repo, bulkPreviewStatus = {}, retryAttempt = 1) {
-        logger.info(`Checking job status of ${jobName} for ${operation}`);
+    async bulkJobStatus(jobStatusUrl, repo, bulkStatus = {}, retryAttempt = 1) {
+        logger.info(`Checking job status for ${repo} using ${jobStatusUrl}`);
         try {
             const { helixAdminApiKeys } = this.appConfig.getConfig();
             const options = {};
@@ -136,30 +143,74 @@ class HelixUtils {
                 options.headers = new fetch.Headers();
                 options.headers.append('Authorization', `token ${helixAdminApiKeys[repo]}`);
             }
-            const bulkOperation = operation === LIVE ? PUBLISH : operation;
-            const urlInfo = this.appConfig.getUrlInfo();
-            const statusUrl = `https://admin.hlx.page/job/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/${bulkOperation}/${jobName}/details`;
+            const statusUrl = `${jobStatusUrl}/details`;
             const response = await fetch(statusUrl, options);
             logger.info(`Status call response ${response.ok} with status ${response.status} `);
             if (!response.ok && retryAttempt <= this.appConfig.getConfig().maxBulkPreviewChecks) {
                 await delay(this.appConfig.getConfig().bulkPreviewCheckInterval * 1000);
-                await this.bulkJobStatus(jobName, operation, repo, bulkPreviewStatus, retryAttempt + 1);
+                await this.bulkJobStatus(jobStatusUrl, repo, bulkStatus, retryAttempt + 1);
             } else if (response.ok) {
                 const jobStatusJson = await response.json();
-                logger.info(`${operation} state ${JSON.stringify(jobStatusJson.state)} progress ${JSON.stringify(jobStatusJson.progress)}`);
-                jobStatusJson.data?.resources?.forEach((rs) => {
-                    bulkPreviewStatus[rs.path] = { success: JOB_STATUS_CODES.includes(rs.status) };
-                });
+                if (jobStatusJson.topic === 'status') {
+                    bulkStatus.resources = jobStatusJson.data?.resources;
+                } else {
+                    jobStatusJson.data?.resources?.forEach((rs) => {
+                        bulkStatus[rs.path] = { success: JOB_STATUS_CODES.includes(rs.status) };
+                    });
+                }
                 if (jobStatusJson.state !== 'stopped' && !jobStatusJson.cancelled &&
                     retryAttempt <= this.appConfig.getConfig().maxBulkPreviewChecks) {
                     await delay(this.appConfig.getConfig().bulkPreviewCheckInterval * 1000);
-                    await this.bulkJobStatus(jobName, operation, repo, bulkPreviewStatus, retryAttempt + 1);
+                    await this.bulkJobStatus(jobStatusUrl, repo, bulkStatus, retryAttempt + 1);
                 }
             }
         } catch (error) {
             logger.info(`Error in checking status: ${error.message}`);
         }
-        return bulkPreviewStatus;
+        return bulkStatus;
+    }
+
+    async getFilesToUnpublish(fgColor, retryAttempt = 1) {
+        let filesToUnPublish = null;
+        logger.info('Get files to unpublish.');
+        const { suffix } = this.appConfig.getFgFolderToDelete();
+        const payload = { select: ['live'], paths: [`${suffix}/*`] };
+        try {
+            const repo = this.getRepo(true, fgColor);
+            const urlInfo = this.appConfig.getUrlInfo();
+            const statusUrl = `https://admin.hlx.page/status/${urlInfo.getOwner()}/${repo}/${urlInfo.getBranch()}/*`;
+            const options = {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: new fetch.Headers([['Accept', 'application/json'], ['Content-Type', 'application/json']])
+            };
+
+            const helixAdminApiKey = this.getAdminApiKey(true, fgColor);
+            if (helixAdminApiKey) {
+                options.headers.append('Authorization', `token ${helixAdminApiKey}`);
+            }
+
+            const response = await fetch(statusUrl, options);
+            logger.info(`status call response ${response.status} for ${statusUrl}`);
+            if (!response.ok && !AUTH_ERRORS.includes(response.status) && retryAttempt <= MAX_RETRIES) {
+                await delay(RETRY_DELAY * 1000);
+                filesToUnPublish = await this.getFilesToUnpublish(fgColor, retryAttempt + 1);
+            } else if (response.ok) {
+                // Get job details
+                const jobResp = await response.json();
+                const jobName = jobResp.job?.name;
+                const jobStatusUrl = jobResp.links?.self;
+                logger.info(`Job details : ${jobName} / ${jobResp.messageId} / ${jobResp.job?.state} with link ${jobStatusUrl}`);
+                if (jobStatusUrl) {
+                    const jobStatus = await this.bulkJobStatus(jobStatusUrl, repo);
+                    filesToUnPublish = jobStatus?.resources || [];
+                }
+            }
+        } catch (error) {
+            logger.info(`Error in checking status: ${error.message}`);
+        }
+        // Filter ignore paths
+        return filesToUnPublish;
     }
 }
 

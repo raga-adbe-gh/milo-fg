@@ -35,7 +35,8 @@ async function main(args) {
     };
     const ow = openwhisk();
     // Initialize action
-    const fgAction = new FgAction(COPY_ACTION, new AppConfig(args));
+    const appConfig = await AppConfig.createAppConfig(args);
+    const fgAction = new FgAction(COPY_ACTION, appConfig);
     fgAction.init({ ow });
     const { fgStatus } = fgAction.getActionParams();
 
@@ -56,7 +57,7 @@ async function main(args) {
             name: 'milo-fg/copy-worker',
             blocking: false, // this is the flag that instructs to execute the worker asynchronous
             result: false,
-            params: args
+            params: appConfig.getPassthruParams(),
         }).then(async (result) => {
             logger.info(result);
             //  attaching activation id to the status

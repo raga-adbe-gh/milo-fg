@@ -16,8 +16,9 @@
  ************************************************************************* */
 
 const crypto = require('crypto');
-const { strToArray, strToBool, getAioLogger } = require('./utils');
+const {strToArray, strToBool, getJsonFromStr } = require('./utils');
 const UrlInfo = require('./urlInfo');
+const { executeRequest } = require('./requestWrapper');
 
 // Max activation is 1hrs, set to 2hrs
 const GRAPH_API = 'https://graph.microsoft.com/v1.0';
@@ -32,6 +33,63 @@ class AppConfig {
         if (params) {
             this.setAppConfig(params);
         }
+    }
+
+    static async createAppConfig(params) {
+        if (!params) {
+            return new AppConfig();
+        }
+        const { fgColor = 'pink' } = params;
+        const updatedParams = params ? { draftsOnly: true, ...params } : {};
+        const urlInfo = params.adminPageUri ? new UrlInfo(updatedParams.adminPageUri) : null;
+        const repo = urlInfo?.getRepo();
+        const configUrl = urlInfo?.getMiloConfigUrl();
+        const options = {};
+        const hlxAdminKey = getJsonFromStr(updatedParams.helixAdminApiKeys)?.[repo];
+        if (hlxAdminKey) {
+            options.headers = {
+                accept: 'application/json',
+                authorization: `token ${hlxAdminKey}`,
+            };
+        }
+        const res = await executeRequest(configUrl, options, 1);
+        if (res.ok) {
+            const miloConfig = await res.json();
+            // Get data from configs
+            miloConfig.configs?.data?.forEach((e) => {
+                if (e.key === 'prod.sharepoint.driveId') {
+                    updatedParams.driveId = e.value;
+                } else if (e.key === 'prod.sharepoint.site') {
+                    updatedParams.spSite = e.value;
+                }
+            });
+            // Get data from floodgate
+            miloConfig.floodgate?.data?.forEach((e) => {
+                if (e.key === 'sharepoint.site.promoteDraftsOnly') {
+                    updatedParams.draftsOnly = e.value;
+                } else if (e.key === 'sharepoint.site.shareUrl') {
+                    updatedParams.shareUrl = e.value;
+                } else if (e.key === 'sharepoint.site.fgShareUrl' && fgColor) {
+                    updatedParams.fgShareUrl = e.value?.replace('<fgColor>', fgColor);
+                } else if (e.key === 'sharepoint.site.rootFolder') {
+                    updatedParams.rootFolder = e.value;
+                } else if (e.key === 'sharepoint.site.fgRootFolder' && fgColor) {
+                    updatedParams.fgRootFolder = e.value?.replace('<fgColor>', fgColor);
+                } else if (e.key === 'sharepoint.site.enableDelete') {
+                    updatedParams.enableDelete = e.value;
+                } else if (e.key === 'sharepoint.site.enablePromote') {
+                    updatedParams.enablePromote = e.value;
+                }
+            });
+            // Get data from promote ignore paths
+            miloConfig.promoteignorepaths?.data?.forEach((e) => {
+                if (e.color === updatedParams.fgColor) {
+                    updatedParams.promoteIgnorePaths = strToArray(e.paths) || [];
+                }
+            });
+        }
+
+        return new AppConfig(updatedParams);
     }
 
     setAppConfig(params) {
@@ -70,14 +128,14 @@ class AppConfig {
         this.configMap.maxFilesPerBatch = parseInt(params.maxFilesPerBatch || '200', 10);
         this.configMap.numBulkReq = parseInt(params.numBulkReq || '20', 10);
         this.configMap.groupCheckUrl = params.groupCheckUrl || 'https://graph.microsoft.com/v1.0/groups/{groupOid}/members?$count=true';
-        this.configMap.fgUserGroups = this.getJsonFromStr(params.fgUserGroups, []);
-        this.configMap.fgAdminGroups = this.getJsonFromStr(params.fgAdminGroups, []);
+        this.configMap.fgUserGroups = getJsonFromStr(params.fgUserGroups, []);
+        this.configMap.fgAdminGroups = getJsonFromStr(params.fgAdminGroups, []);
         this.configMap.fgDirPattern = params.fgDirPattern || '-(pink|blue|purple)$';
         this.configMap.siteRootPathRex = this.siteRootPathRex || '.*/sites(/.*)<';
-        this.configMap.helixAdminApiKeys = this.getJsonFromStr(params.helixAdminApiKeys);
+        this.configMap.helixAdminApiKeys = getJsonFromStr(params.helixAdminApiKeys);
         this.configMap.bulkPreviewCheckInterval = parseInt(params.bulkPreviewCheckInterval || '30', 10);
         this.configMap.maxBulkPreviewChecks = parseInt(params.maxBulkPreviewChecks || '30', 10);
-        this.configMap.enablePreviewPublish = this.getJsonFromStr(params.enablePreviewPublish, []);
+        this.configMap.enablePreviewPublish = getJsonFromStr(params.enablePreviewPublish, []);
         this.configMap.deleteRootPath = params.deleteRootPath;
         this.configMap.maxDeleteFilesPerBatch = params.maxDeleteFilesPerBatch || 100;
         this.extractPrivateKey();
@@ -97,16 +155,6 @@ class AppConfig {
     getConfig() {
         const { payload, ...configMap } = this.configMap;
         return { ...configMap, payload: this.getPayload() };
-    }
-
-    getJsonFromStr(str, def = {}) {
-        try {
-            return JSON.parse(str);
-        } catch (err) {
-            // Mostly bad string ignored
-            getAioLogger().debug(`Error while parsing ${str}`);
-        }
-        return def;
     }
 
     /**

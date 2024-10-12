@@ -31,6 +31,8 @@ const { getAioLogger } = require('./utils');
 class SharepointAuth {
     msalConfig = null;
 
+    accessToken = null;
+
     constructor(msalConfig) {
         this.msalConfig = msalConfig;
         this.init();
@@ -109,7 +111,7 @@ class SharepointAuth {
     /**
      * Get the access token. If the in-memory token is not expired valid it will be reused. Otherwise, a new token is acquired and returned.
      *
-     * @returns {string} the access token
+     * @returns {Promise<string>} the access token
      */
     async getAccessToken() {
         const logger = getAioLogger();

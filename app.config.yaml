@@ -92,7 +92,7 @@ application:
               LOG_LEVEL: debug
             limits:
               timeout: 3600000
-              memorySize: 1024
+              memorySize: 2048
               concurrency: 5
           post-copy-worker:
             function: actions/promote/postCopyWorker.js

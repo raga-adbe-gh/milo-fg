@@ -46,7 +46,7 @@ class FgPromoteActionHelper {
         return this.findAndBatchFGFiles({
             baseURI: sp.api.file.get.fgBaseURI,
             options,
-            fgFolders: (appConfig || appConfig.isDraftOnly()) ? ['/drafts'] : [''],
+            fgFolders: appConfig.isDraftOnly() ? ['/drafts/raga/a'] : ['/drafts/raga/a'],
             promoteIgnoreList,
             downloadBaseURI: sp.api.file.download.baseURI,
             sharepoint
@@ -94,9 +94,8 @@ class FgPromoteActionHelper {
         }
     }
 
-    async promoteFile(batchItem, { appConfig }) {
+    async promoteFile(batchItem, { appConfig, sharepoint }) {
         const logger = getAioLogger();
-        const sharepoint = new Sharepoint(appConfig);
         const spConfig = await appConfig.getSpConfig();
         const { fileDownloadUrl, filePath, mimeType } = batchItem.file;
         const status = { success: false, srcPath: filePath };
@@ -109,13 +108,14 @@ class FgPromoteActionHelper {
             logger.error(`Error promoting files ${fileDownloadUrl} at ${filePath} to main content tree ${error.message}`);
         }
         return status;
-    };
+    }
 
     async promoteFloodgatedFiles(batchManager, appConfig) {
         const logger = getAioLogger();
         const sharepoint = new Sharepoint(appConfig);
         // Pre check Access Token
         await sharepoint.getSharepointAuth().getAccessToken();
+        await delay(DELAY_TIME_PROMOTE);
 
         let stepMsg = 'Getting all floodgated files to promote.';
         // Get the batch files using the batchmanager for the assigned batch and process them
@@ -125,7 +125,7 @@ class FgPromoteActionHelper {
         const numBulkReq = appConfig.getNumBulkReq();
         logger.info(`Files for the batch are ${allFloodgatedFiles.length}`);
 
-        const promoteStatuses = await inParallel(allFloodgatedFiles, this.promoteFile, logger, false, { appConfig }, numBulkReq);
+        const promoteStatuses = await inParallel(allFloodgatedFiles, this.promoteFile, logger, false, { appConfig, sharepoint }, numBulkReq);
 
         stepMsg = `Completed promoting all documents in the batch ${currBatchLbl}`;
         logger.info(stepMsg);

@@ -194,6 +194,16 @@ function isFilePatternMatched(filePath, patterns) {
     return isFilePathWithWildcard(filePath, patterns);
 }
 
+function getJsonFromStr(str, def = {}) {
+    try {
+        return JSON.parse(str);
+    } catch (err) {
+        // Mostly bad string ignored
+        getAioLogger().debug(`Error while parsing ${str}`);
+    }
+    return def;
+}
+
 async function inParallel(elements, processElement, logger, ignoreResults = true, passParameter = null, numParallel = 5) {
     const queue = [];
     queue.push(...elements);
@@ -226,7 +236,7 @@ async function inParallel(elements, processElement, logger, ignoreResults = true
     }
     const results = await Promise.all(workers);
     return results.reduce((prev, curr) => prev.concat(curr), []);
-};
+}
 
 module.exports = {
     errorResponse,
@@ -248,5 +258,6 @@ module.exports = {
     isFilePathWithWildcard,
     isFilePatternMatched,
     strToBool,
+    getJsonFromStr,
     inParallel
 };

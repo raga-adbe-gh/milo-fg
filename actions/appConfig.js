@@ -16,7 +16,7 @@
  ************************************************************************* */
 
 const crypto = require('crypto');
-const {strToArray, strToBool, getJsonFromStr } = require('./utils');
+const { strToArray, strToBool, getJsonFromStr } = require('./utils');
 const UrlInfo = require('./urlInfo');
 const { executeRequest } = require('./requestWrapper');
 

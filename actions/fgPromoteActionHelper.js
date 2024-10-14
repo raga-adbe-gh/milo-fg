@@ -46,7 +46,7 @@ class FgPromoteActionHelper {
         return this.findAndBatchFGFiles({
             baseURI: sp.api.file.get.fgBaseURI,
             options,
-            fgFolders: appConfig.isDraftOnly() ? ['/drafts/raga/a'] : ['/drafts/raga/a'],
+            fgFolders: appConfig.isDraftOnly() ? ['/drafts'] : [''],
             promoteIgnoreList,
             downloadBaseURI: sp.api.file.download.baseURI,
             sharepoint

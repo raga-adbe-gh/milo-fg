@@ -119,9 +119,8 @@ function logMemUsageIter() {
     setTimeout(() => eventEmitter.emit('logMemUsage'), 400);
 }
 
-function getInstanceKey(params) {
-    const path = decodeURIComponent(params?.fgRootFolder || 'default_path').toLowerCase();
-    return path.replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
+function getInstanceKey(siteKey) {
+    return siteKey?.replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
 }
 
 /**

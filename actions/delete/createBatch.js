@@ -55,10 +55,9 @@ async function main(params) {
         }
 
         respPayload = 'Started deleting content';
-        const siteFgRootPath = appConfig.getSiteFgRootPath();
         const batchManager = new BatchManager({
             key: DELETE_ACTION,
-            instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }),
+            instanceKey: getInstanceKey(appConfig.getFgSiteKey()),
             batchConfig: appConfig.getDeleteBatchConfig()
         });
 

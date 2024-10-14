@@ -80,8 +80,7 @@ async function main(args) {
         }
 
         // Starts
-        const siteFgRootPath = appConfig.getSiteFgRootPath();
-        const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }), batchConfig: appConfig.getBatchConfig() });
+        const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey(appConfig.getFgSiteKey()), batchConfig: appConfig.getBatchConfig() });
         await batchManager.init({ batchNumber });
         const currentBatch = batchNumber ? await batchManager.getCurrentBatch() : null;
 
@@ -99,14 +98,12 @@ async function main(args) {
             payload.batchFiles = batchFilesContent?.map((e) => e.file?.filePath);
         }
 
-        const extractMessages = (results) => {
-            return Object.fromEntries(
-                Object.entries(results).map(([key, value]) => [
-                    key,
-                    value.map(item => `${item.path}${item.message ? ` (${item.message})` : ''}`)
-                ])
-            );
-        };
+        const extractMessages = (results) => Object.fromEntries(
+            Object.entries(results).map(([key, value]) => [
+                key,
+                value.map((item) => `${item.path}${item.message ? ` (${item.message})` : ''}`)
+            ])
+        );
 
         if (args.batchResults !== undefined) {
             const brC = await currentBatch.getResultsContent();

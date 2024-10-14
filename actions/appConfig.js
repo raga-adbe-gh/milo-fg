@@ -16,7 +16,7 @@
  ************************************************************************* */
 
 const crypto = require('crypto');
-const {strToArray, strToBool, getJsonFromStr } = require('./utils');
+const { strToArray, strToBool, getJsonFromStr } = require('./utils');
 const UrlInfo = require('./urlInfo');
 const { executeRequest } = require('./requestWrapper');
 
@@ -113,6 +113,7 @@ class AppConfig {
         payload.enablePromote = params.enablePromote;
         payload.enableDelete = params.enableDelete;
         payload.spSite = params.spSite;
+        payload.urlInfo = payload.adminPageUri ? new UrlInfo(payload.adminPageUri) : null;
 
         // These are from configs and not activation related
         this.configMap.fgSite = payload.spSite || params.fgSite;
@@ -131,7 +132,6 @@ class AppConfig {
         this.configMap.fgUserGroups = getJsonFromStr(params.fgUserGroups, []);
         this.configMap.fgAdminGroups = getJsonFromStr(params.fgAdminGroups, []);
         this.configMap.fgDirPattern = params.fgDirPattern || '-(pink|blue|purple)$';
-        this.configMap.siteRootPathRex = this.siteRootPathRex || '.*/sites(/.*)<';
         this.configMap.helixAdminApiKeys = getJsonFromStr(params.helixAdminApiKeys);
         this.configMap.bulkPreviewCheckInterval = parseInt(params.bulkPreviewCheckInterval || '30', 10);
         this.configMap.maxBulkPreviewChecks = parseInt(params.maxBulkPreviewChecks || '30', 10);
@@ -139,12 +139,6 @@ class AppConfig {
         this.configMap.deleteRootPath = params.deleteRootPath;
         this.configMap.maxDeleteFilesPerBatch = params.maxDeleteFilesPerBatch || 100;
         this.extractPrivateKey();
-
-        payload.ext = {
-            siteRootPath: this.extractSiteRootPath(params.shareUrl),
-            siteFgRootPath: this.extractSiteRootPath(params.fgShareUrl),
-            urlInfo: payload.adminPageUri ? new UrlInfo(payload.adminPageUri) : null
-        };
     }
 
     getPayload() {
@@ -230,20 +224,13 @@ class AppConfig {
         return this.configMap.numBulkReq;
     }
 
-    extractSiteRootPath(shareUrl) {
-        try {
-            return shareUrl.match(new RegExp(this.configMap.siteRootPathRex))[1];
-        } catch (err) {
-            return '/';
-        }
-    }
-
-    getSiteFgRootPath() {
-        return this.getPayload().ext.siteFgRootPath;
-    }
-
     getUrlInfo() {
-        return this.getPayload().ext.urlInfo;
+        return this.getPayload().urlInfo;
+    }
+
+    getFgSiteKey() {
+        const { fgColor, urlInfo } = this.getPayload();
+        return `${urlInfo.getRepo()}-${fgColor}--${urlInfo.getOwner()}`;
     }
 
     isDraftOnly() {

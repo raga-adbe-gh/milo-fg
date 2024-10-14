@@ -45,10 +45,9 @@ async function main(params) {
     const fgAction = new FgAction(`${PROMOTE_BATCH}_${batchNumber}`, appConfig);
     fgAction.init({ ow, skipUserDetails: true, fgStatusParams: { keySuffix: `Batch_${batchNumber}` } });
     const { fgStatus } = fgAction.getActionParams();
-    const fgRootFolder = appConfig.getSiteFgRootPath();
 
     let respPayload;
-    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder }), batchConfig: appConfig.getBatchConfig() });
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey(appConfig.getFgSiteKey()), batchConfig: appConfig.getBatchConfig() });
     await batchManager.init({ batchNumber });
     try {
         const vStat = await fgAction.validateAction(valParams);

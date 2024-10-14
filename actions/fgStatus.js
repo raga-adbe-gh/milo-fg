@@ -84,16 +84,16 @@ class FgStatus {
     }
 
     generateStoreKey(keySuffix) {
-        const siteFgRootPath = decodeURIComponent(this.appConfig.getSiteFgRootPath() || '');
+        const fgSiteKey = this.appConfig.getFgSiteKey();
         const { projectExcelPath } = this.appConfig.getPayload();
         let resp = '';
 
         switch (this.action) {
             case COPY_ACTION:
-                resp = `${this.action}:${siteFgRootPath}:${projectExcelPath || ''}`;
+                resp = `${this.action}:${fgSiteKey}:${projectExcelPath || ''}`;
                 break;
             default:
-                resp = `${this.action}:${siteFgRootPath}`;
+                resp = `${this.action}:${fgSiteKey}`;
         }
         resp += keySuffix || '';
         this.logger.debug(`Generated key for ${this.action} is ${resp}`);

@@ -58,8 +58,7 @@ async function main(params) {
     const fgAction = new FgAction(PROMOTE_ACTION, appConfig);
     fgAction.init({ ow, skipUserDetails: true });
     const { fgStatus } = fgAction.getActionParams();
-    const siteFgRootPath = appConfig.getSiteFgRootPath();
-    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }), batchConfig: appConfig.getBatchConfig() });
+    const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey(appConfig.getFgSiteKey()), batchConfig: appConfig.getBatchConfig() });
     await batchManager.init();
     // For current cleanup files before starting
     await batchManager.cleanupFiles();

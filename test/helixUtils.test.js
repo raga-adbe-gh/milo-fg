@@ -73,7 +73,7 @@ describe('HelixUtils', () => {
 
     it('should return PREVIEW and LIVE', () => {
         const operations = helixUtils.getOperations();
-        expect(operations).toEqual({ PREVIEW: 'preview', PUBLISH: 'publish', UNPUBLISH: 'publish' });
+        expect(operations).toEqual({ PREVIEW: 'preview', PUBLISH: 'publish', UNPUBLISH: 'unpublish' });
     });
 
     it('should return repo without floodgate', () => {

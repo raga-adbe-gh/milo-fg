@@ -158,7 +158,7 @@ describe('utils', () => {
 
     describe('getInstanceKey', () => {
         test('Check instance key cleanup', () => {
-            expect(utils.getInstanceKey({ fgRootFolder: 'Clean-Up%20This_123' })).toEqual('clean_up_this_123');
+            expect(utils.getInstanceKey('Clean-Up This_123')).toEqual('clean_up_this_123');
         });
     });
 

@@ -28,8 +28,6 @@ let params = {
     spToken: 'eyJ0eXAi',
     adminPageUri: 'http://localhost:3000/tools/floodgate/index.html?project=milo--adobecom&referrer=',
     projectExcelPath: '/drafts/floodgate/projects/raga/fgtest1.xlsx',
-    shareUrl: 'https://site.sharepoint.com/:f:/r/sites/adobecom/Shared%20Documents/milo<relativePath>?web=1',
-    fgShareUrl: 'https://site.sharepoint.com/:f:/r/sites/adobecom/Shared%20Documents/milo-pink<relativePath>?web=1',
     rootFolder: '/milo',
     fgRootFolder: '/milo-pink',
     promoteIgnorePaths: '/gnav.docx,/.milo',
@@ -83,8 +81,6 @@ describe('appConfig', () => {
         expect(appConfig.getSkipInProgressCheck()).toBeTruthy();
         expect({ ...appConfig.getBatchConfig() }).toMatchObject({ batchFilesPath: params.batchFilesPath, maxFilesPerBatch: 200 });
         expect(appConfig.getNumBulkReq()).toBe(20);
-        expect(appConfig.extractSiteRootPath()).toBe('/');
-        expect(appConfig.getSiteFgRootPath()).toBe('/adobecom/Shared%20Documents/milo-pink');
         expect(appConfig.getUrlInfo()).toMatchObject({
             urlInfoMap: {
                 branch: 'main', origin: 'https://main--milo--adobecom.hlx.page', owner: 'adobecom', repo: 'milo', sp: ''

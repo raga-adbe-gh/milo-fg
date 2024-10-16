@@ -24,7 +24,7 @@ const JOB_STATUS_CODES = [200, 204, 304];
 const AUTH_ERRORS = [401, 403];
 const PREVIEW = 'preview';
 const PUBLISH = 'publish';
-const UNPUBLISH = 'publish';
+const UNPUBLISH = 'unpublish';
 const LIVE = 'live';
 
 const logger = getAioLogger();

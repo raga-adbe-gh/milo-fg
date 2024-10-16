@@ -120,7 +120,7 @@ function logMemUsageIter() {
 }
 
 function getInstanceKey(siteKey) {
-    return siteKey?.replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
+    return (siteKey?.replace(/[^a-zA-Z0-9_]/g, '_') || 'default').toLowerCase();
 }
 
 /**

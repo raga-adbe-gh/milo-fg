@@ -238,15 +238,6 @@ async function triggerPromoteWorkerAction(ow, params, fgStatus) {
     });
 }
 
-function extractMessages(results) {
-    return results ? Object.fromEntries(
-        Object.entries(results).map(([key, value]) => [
-            key,
-            value.map(item => `${item.path}${item.message ? ` (${item.message})` : ''}`)
-        ])
-    ) : results;
-};
-
 /**
  * Marks the proocess as complete and collects all errors and updates excel.
  * @param {*} projectExcelPath Project excel where status needs to be updated
@@ -265,8 +256,7 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
         try {
             batchManager.initBatch({ batchNumber });
             const batch = await batchManager.getCurrentBatch();
-            const resultContent = await batch.getResultsContent();
-            const results = extractMessages(resultContent);
+            const results = await batch.getResultsContent();
             if (results?.failedPromotes?.length > 0) {
                 failedPromotes.push(...results.failedPromotes);
             }

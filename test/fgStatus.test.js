@@ -50,10 +50,10 @@ describe('fgStatus', () => {
         }));
 
         appConfigMock = {
-            getSiteFgRootPath: jest.fn().mockReturnValue('/milo-pink'),
             getPayload: jest.fn().mockReturnValue({
                 projectExcelPath: '/mydoc/drafts/fg/prj1.xlsx'
             }),
+            getFgSiteKey: jest.fn().mockReturnValue('milo-pink--adobecom'),
         };
 
         FgStatus = require('../actions/fgStatus');
@@ -77,7 +77,7 @@ describe('fgStatus', () => {
             appConfig: appConfigMock,
         });
         const storeKey = fgStatus2.generateStoreKey('/suf');
-        expect(storeKey).toBe('promoteAction:/milo-pink/suf');
+        expect(storeKey).toBe('promoteAction:milo-pink--adobecom/suf');
     });
 
     it('key updated', async () => {

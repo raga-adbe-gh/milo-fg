@@ -66,7 +66,7 @@ class BatchManager {
      */
     initInstance(params) {
         this.instanceKey = (params.instanceKey || 'default').replaceAll('/', '_');
-        this.instancePath = `${this.batchFilesPath}/${this.key}/instance${this.instanceKey}`;
+        this.instancePath = `${this.batchFilesPath}/${this.key}/instance_${this.instanceKey}`;
         this.instanceFile = `${this.instancePath}/instance_info.json`;
         this.resultsFile = `${this.instancePath}/instance_results.json`;
         return this;

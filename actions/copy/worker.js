@@ -26,6 +26,7 @@ const FgStatus = require('../fgStatus');
 const FgAction = require('../fgAction');
 const AppConfig = require('../appConfig');
 const FgCopyActionHelper = require('../fgCopyActionHelper');
+const { delay } = require('../utils');
 
 async function main(params) {
     logMemUsage();
@@ -78,6 +79,8 @@ async function main(params) {
             statusMessage: respPayload
         });
 
+        await sharepoint.getSharepointAuth().getAccessToken();
+        await delay(100);
         respPayload = await fgCopyActionHelper.floodgateContent(projectExcelPath, projectDetail, fgStatus, fgColor, { sharepoint, helixUtils, spConfig });
     } catch (err) {
         await fgStatus.updateStatusToStateLib({

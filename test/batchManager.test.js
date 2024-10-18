@@ -61,13 +61,13 @@ describe('BatchManager', () => {
         );
         expect(batchManager.instanceKey).toEqual('milo-pink');
         expect(batchManager.instancePath).toEqual(
-            '/floodgate/promoteAction/instancemilo-pink'
+            '/floodgate/promoteAction/instance_milo-pink'
         );
         expect(batchManager.instanceFile).toEqual(
-            '/floodgate/promoteAction/instancemilo-pink/instance_info.json'
+            '/floodgate/promoteAction/instance_milo-pink/instance_info.json'
         );
         expect(batchManager.resultsFile).toEqual(
-            '/floodgate/promoteAction/instancemilo-pink/instance_results.json'
+            '/floodgate/promoteAction/instance_milo-pink/instance_results.json'
         );
     });
 
@@ -141,7 +141,7 @@ describe('BatchManager', () => {
         batchManager.filesSdk = filesSdkMock;
         await batchManager.writeToInstanceFile({ data: 'test' });
         expect(filesSdkMock.write).toHaveBeenCalledWith(
-            '/floodgate/promoteAction/instancemilo-pink/instance_info.json',
+            '/floodgate/promoteAction/instance_milo-pink/instance_info.json',
             JSON.stringify({ data: 'test' })
         );
     });
@@ -159,7 +159,7 @@ describe('BatchManager', () => {
         batchManager.filesSdk = filesSdkMock;
         await batchManager.addToInstanceFile({ data: 'test' });
         expect(filesSdkMock.write).toHaveBeenCalledWith(
-            '/floodgate/promoteAction/instancemilo-pink/instance_info.json',
+            '/floodgate/promoteAction/instance_milo-pink/instance_info.json',
             writtenData
         );
     });
@@ -247,7 +247,7 @@ describe('BatchManager', () => {
 
         // Assert
         expect(filesSdkMock.delete).toHaveBeenCalledWith(
-            '/floodgate/promoteAction/instancemilo-pink/'
+            '/floodgate/promoteAction/instance_milo-pink/'
         );
     });
 

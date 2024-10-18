@@ -86,8 +86,6 @@ describe('appConfig', () => {
         expect(appConfig.getSkipInProgressCheck()).toBeTruthy();
         expect({ ...appConfig.getBatchConfig() }).toMatchObject({ batchFilesPath: params.batchFilesPath, maxFilesPerBatch: 200 });
         expect(appConfig.getNumBulkReq()).toBe(20);
-        expect(appConfig.extractSiteRootPath()).toBe('/');
-        expect(appConfig.getSiteFgRootPath()).toBe('/adobecom/Shared%20Documents/milo-pink');
         expect(appConfig.getUrlInfo()).toMatchObject({
             urlInfoMap: {
                 branch: 'floodgateui',

@@ -33,8 +33,7 @@ const GEN_ERROR_SC = 500;
  * Sample Input
  *  {
  *      "promoteResults": true,
- *      "fgShareUrl": "https://adobe.sharepoint.com/:f:/r/sites/adobecom/Shared%20Documents/milo-pink<relativePath>?web=1",
- *      "spToken": ""
+ *      "adminPageUri": "https://floodgateui--milo--adobecom.hlx.page/....",
  *  }
  * @param {*} args Action arguments
  * @returns results based on parameter below
@@ -71,8 +70,8 @@ async function main(args) {
 
         // Validations
         const fgUser = new FgUser({ appConfig });
-        if (!args.fgShareUrl) {
-            return errorResponse(BAD_REQUEST_SC, 'Mising required fgShareUrl parameter');
+        if (!args.adminPageUri) {
+            return errorResponse(BAD_REQUEST_SC, 'Mising required adminPageUri parameter');
         }
 
         if (!await fgUser.isUser()) {
@@ -80,8 +79,7 @@ async function main(args) {
         }
 
         // Starts
-        const siteFgRootPath = appConfig.getSiteFgRootPath();
-        const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey({ fgRootFolder: siteFgRootPath }), batchConfig: appConfig.getBatchConfig() });
+        const batchManager = new BatchManager({ key: PROMOTE_ACTION, instanceKey: getInstanceKey(appConfig.getFgSiteKey()), batchConfig: appConfig.getBatchConfig() });
         await batchManager.init({ batchNumber });
         const currentBatch = batchNumber ? await batchManager.getCurrentBatch() : null;
 
@@ -99,14 +97,12 @@ async function main(args) {
             payload.batchFiles = batchFilesContent?.map((e) => e.file?.filePath);
         }
 
-        const extractMessages = (results) => {
-            return Object.fromEntries(
-                Object.entries(results).map(([key, value]) => [
-                    key,
-                    value.map(item => `${item.path}${item.message ? ` (${item.message})` : ''}`)
-                ])
-            );
-        };
+        const extractMessages = (results) => Object.fromEntries(
+            Object.entries(results).map(([key, value]) => [
+                key,
+                value.map((item) => `${item.path}${item.message ? ` (${item.message})` : ''}`)
+            ])
+        );
 
         if (args.batchResults !== undefined) {
             const brC = await currentBatch.getResultsContent();

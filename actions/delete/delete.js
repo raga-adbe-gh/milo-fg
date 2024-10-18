@@ -36,7 +36,8 @@ async function main(args) {
     };
     const ow = openwhisk();
     // Initialize action
-    const fgAction = new FgAction(DELETE_ACTION, new AppConfig(args));
+    const appConfig = await AppConfig.createAppConfig(args);
+    const fgAction = new FgAction(DELETE_ACTION, appConfig);
     fgAction.init({ ow });
     const { fgStatus } = fgAction.getActionParams();
     try {
@@ -56,7 +57,7 @@ async function main(args) {
             name: 'milo-fg/delete-create-batch',
             blocking: false, // this is the flag that instructs to execute the worker asynchronous
             result: false,
-            params: args
+            params: appConfig.getPassthruParams(),
         }).then(async (result) => {
             logger.info(result);
             //  attaching activation id to the status

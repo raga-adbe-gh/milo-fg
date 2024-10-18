@@ -64,6 +64,10 @@ class UrlInfo {
     getBranch() {
         return this.urlInfoMap.branch;
     }
+
+    getMiloConfigUrl() {
+        return `${this.urlInfoMap.origin}/.milo/config.json`;
+    }
 }
 
 module.exports = UrlInfo;

@@ -19,7 +19,7 @@
 const openwhisk = require('openwhisk');
 const Sharepoint = require('../sharepoint');
 const {
-    toUTCStr, getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress
+    toUTCStr, getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress, extractMessages
 } = require('../utils');
 const AppConfig = require('../appConfig');
 const FgStatus = require('../fgStatus');
@@ -256,7 +256,8 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
         try {
             batchManager.initBatch({ batchNumber });
             const batch = await batchManager.getCurrentBatch();
-            const results = await batch.getResultsContent();
+            const resultsJson = await batch.getResultsContent();
+            const results = extractMessages(resultsJson);
             if (results?.failedPromotes?.length > 0) {
                 failedPromotes.push(...results.failedPromotes);
             }

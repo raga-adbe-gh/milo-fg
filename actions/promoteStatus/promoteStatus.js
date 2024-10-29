@@ -17,7 +17,7 @@
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 const {
-    errorResponse, getAioLogger, getInstanceKey, PROMOTE_ACTION
+    errorResponse, getAioLogger, getInstanceKey, extractMessages, PROMOTE_ACTION
 } = require('../utils');
 const AppConfig = require('../appConfig');
 const FgUser = require('../fgUser');
@@ -96,13 +96,6 @@ async function main(args) {
             const batchFilesContent = await currentBatch.getFiles();
             payload.batchFiles = batchFilesContent?.map((e) => e.file?.filePath);
         }
-
-        const extractMessages = (results) => Object.fromEntries(
-            Object.entries(results).map(([key, value]) => [
-                key,
-                value.map((item) => `${item.path}${item.message ? ` (${item.message})` : ''}`)
-            ])
-        );
 
         if (args.batchResults !== undefined) {
             const brC = await currentBatch.getResultsContent();

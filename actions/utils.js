@@ -237,6 +237,15 @@ async function inParallel(elements, processElement, logger, ignoreResults = true
     return results.reduce((prev, curr) => prev.concat(curr), []);
 }
 
+function extractMessages(results) {
+    return Object.fromEntries(
+        Object.entries(results).map(([key, value]) => [
+            key,
+            value.map((item) => `${item.path}${item.message ? ` (${item.message})` : ''}`)
+        ])
+    );
+}
+
 module.exports = {
     errorResponse,
     successResponse,
@@ -258,5 +267,6 @@ module.exports = {
     isFilePatternMatched,
     strToBool,
     getJsonFromStr,
-    inParallel
+    inParallel,
+    extractMessages,
 };

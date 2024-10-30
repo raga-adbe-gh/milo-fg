@@ -256,8 +256,7 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
         try {
             batchManager.initBatch({ batchNumber });
             const batch = await batchManager.getCurrentBatch();
-            const resultsJson = await batch.getResultsContent();
-            const results = extractMessages(resultsJson);
+            const results = await batch.getResultsContent();
             if (results?.failedPromotes?.length > 0) {
                 failedPromotes.push(...results.failedPromotes);
             }
@@ -271,6 +270,10 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
             logger.error(`Error while reading batch content in tracker ${err}`);
         }
     }
+
+    // Extract messages for excels
+    const promoteResults = { failedPromotes, failedPreviews, failedPublishes };
+    const { failedPromotes: failedPromoteMessages = [], failedPreviews: failedPreviewMessages = [], failedPublishes: failedPublisheMesssages = [] } = extractMessages(promoteResults);
 
     const fgErrors = failedPromotes.length > 0 || failedPreviews.length > 0 ||
         failedPublishes.length > 0;
@@ -287,11 +290,11 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
     });
 
     const { startTime: startPromote, endTime: endPromote } = fgStatus.getStartEndTime();
-    const excelValues = [['PROMOTE', toUTCStr(startPromote), toUTCStr(endPromote), failedPromotes.join('\n'), failedPreviews.join('\n'), failedPublishes.join('\n')]];
+    const excelValues = [['PROMOTE', toUTCStr(startPromote), toUTCStr(endPromote), failedPromoteMessages.join('\n'), failedPreviewMessages.join('\n'), failedPublisheMesssages.join('\n')]];
     await sharepoint.updateExcelTable(projectExcelPath, 'PROMOTE_STATUS', excelValues);
     logger.info('Project excel file updated with promote status.');
 
-    await batchManager.markComplete(fgErrors ? { failedPromotes, failedPreviews, failedPublishes } : null);
+    await batchManager.markComplete(fgErrors ? promoteResults : null);
     logger.info('Marked complete in batch manager.');
 }
 

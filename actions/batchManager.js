@@ -66,7 +66,7 @@ class BatchManager {
      */
     initInstance(params) {
         this.instanceKey = (params.instanceKey || 'default').replaceAll('/', '_');
-        this.instancePath = `${this.batchFilesPath}/${this.key}/instance${this.instanceKey}`;
+        this.instancePath = `${this.batchFilesPath}/${this.key}/instance_${this.instanceKey}`;
         this.instanceFile = `${this.instancePath}/instance_info.json`;
         this.resultsFile = `${this.instancePath}/instance_results.json`;
         return this;
@@ -124,9 +124,13 @@ class BatchManager {
     }
 
     /**
-     * Write to promoteAction/tracker.json
+     * Write to ___Action/tracker.json
      */
     async writeToBmTracker(data) {
+        await this.filesSdk.write(this.bmTracker, JSON.stringify(data));
+    }
+
+    async updateBmTracker(data) {
         const content = await this.readBmTracker();
         content.instanceKeys = content.instanceKeys || [];
         if (content.instanceKeys) {
@@ -136,7 +140,22 @@ class BatchManager {
                 content.instanceKeys.push(this.instanceKey);
             }
         }
-        await this.filesSdk.write(this.bmTracker, JSON.stringify({ ...content, ...data }));
+        await this.writeToBmTracker({ ...content, ...data });
+    }
+
+    async isInstanceRunning() {
+        const tracker = await this.readBmTracker();
+        return tracker.running;
+    }
+
+    async markInstanceRunning() {
+        const tracker = await this.readBmTracker();
+        await this.writeToBmTracker({ ...tracker, running: new Date().getTime() });
+    }
+
+    async markInstancePaused() {
+        const { running, ...rest } = await this.readBmTracker();
+        await this.writeToBmTracker(rest);
     }
 
     /**
@@ -197,21 +216,19 @@ class BatchManager {
     async finalizeInstance(addlParams) {
         // Save any pending files in the batch
         await this.currentBatch?.savePendingFiles();
-
         // If there are any additional parameters then add to the instance file.
         if (addlParams) {
             const ifc = await this.getInstanceFileContent();
             ifc.dtls = { ...ifc.dtls, ...addlParams };
             await this.writeToInstanceFile(ifc);
         }
-
         // Update promoteAction/tracker.json to start the batch processing
-        const params = {};
+        const params = { running: 0 };
         params[`${this.instanceKey}`] = {
             done: false,
             proceed: true,
         };
-        await this.writeToBmTracker(params);
+        await this.updateBmTracker(params);
     }
 
     async markComplete(results) {
@@ -221,7 +238,7 @@ class BatchManager {
             proceed: false,
         };
         if (results) await this.writeResults(results);
-        await this.writeToBmTracker(params);
+        await this.updateBmTracker(params);
     }
 
     /**

@@ -16,9 +16,9 @@
  ************************************************************************* */
 
 describe('BatchManager', () => {
-    Batch = null;
-    BatchManager = null;
-    params = {
+    let Batch = null;
+    let BatchManager = null;
+    const params = {
         key: 'promoteAction',
         instanceKey: 'milo-pink',
         batchConfig: { maxFilesPerBatch: 10, batchFilesPath: '/floodgate' },
@@ -61,13 +61,13 @@ describe('BatchManager', () => {
         );
         expect(batchManager.instanceKey).toEqual('milo-pink');
         expect(batchManager.instancePath).toEqual(
-            '/floodgate/promoteAction/instancemilo-pink'
+            '/floodgate/promoteAction/instance_milo-pink'
         );
         expect(batchManager.instanceFile).toEqual(
-            '/floodgate/promoteAction/instancemilo-pink/instance_info.json'
+            '/floodgate/promoteAction/instance_milo-pink/instance_info.json'
         );
         expect(batchManager.resultsFile).toEqual(
-            '/floodgate/promoteAction/instancemilo-pink/instance_results.json'
+            '/floodgate/promoteAction/instance_milo-pink/instance_results.json'
         );
     });
 
@@ -122,7 +122,7 @@ describe('BatchManager', () => {
         };
         const batchManager = new BatchManager(params);
         batchManager.filesSdk = filesSdkMock;
-        await batchManager.writeToBmTracker({ data: 'test' });
+        await batchManager.updateBmTracker({ data: 'test' });
         expect(filesSdkMock.write).toHaveBeenCalledWith(
             '/floodgate/promoteAction/tracker.json',
             JSON.stringify({
@@ -141,7 +141,7 @@ describe('BatchManager', () => {
         batchManager.filesSdk = filesSdkMock;
         await batchManager.writeToInstanceFile({ data: 'test' });
         expect(filesSdkMock.write).toHaveBeenCalledWith(
-            '/floodgate/promoteAction/instancemilo-pink/instance_info.json',
+            '/floodgate/promoteAction/instance_milo-pink/instance_info.json',
             JSON.stringify({ data: 'test' })
         );
     });
@@ -159,7 +159,7 @@ describe('BatchManager', () => {
         batchManager.filesSdk = filesSdkMock;
         await batchManager.addToInstanceFile({ data: 'test' });
         expect(filesSdkMock.write).toHaveBeenCalledWith(
-            '/floodgate/promoteAction/instancemilo-pink/instance_info.json',
+            '/floodgate/promoteAction/instance_milo-pink/instance_info.json',
             writtenData
         );
     });
@@ -209,13 +209,13 @@ describe('BatchManager', () => {
         // Arrange
         const batchManager = new BatchManager(params);
         await batchManager.init({});
-        const writeToBmTrackerMock = jest.spyOn(batchManager, 'writeToBmTracker');
+        const updateBmTrackerMock = jest.spyOn(batchManager, 'updateBmTracker');
 
         // Act
         await batchManager.markComplete();
 
         // Assert
-        expect(writeToBmTrackerMock).toHaveBeenCalledWith({
+        expect(updateBmTrackerMock).toHaveBeenCalledWith({
             [`${batchManager.instanceKey}`]: {
                 done: true,
                 proceed: false,
@@ -247,7 +247,7 @@ describe('BatchManager', () => {
 
         // Assert
         expect(filesSdkMock.delete).toHaveBeenCalledWith(
-            '/floodgate/promoteAction/instancemilo-pink/'
+            '/floodgate/promoteAction/instance_milo-pink/'
         );
     });
 

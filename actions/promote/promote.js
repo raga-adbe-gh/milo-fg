@@ -37,7 +37,7 @@ async function main(args) {
     };
     const ow = openwhisk();
     // Initialize action
-    const appConfig = new AppConfig(args);
+    const appConfig = await AppConfig.createAppConfig(args);
     const fgAction = new FgAction(PROMOTE_ACTION, appConfig);
     fgAction.init({ ow });
     const { fgStatus } = fgAction.getActionParams();

@@ -19,7 +19,7 @@
 const openwhisk = require('openwhisk');
 const Sharepoint = require('../sharepoint');
 const {
-    toUTCStr, getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress
+    toUTCStr, getAioLogger, PROMOTE_ACTION, PROMOTE_BATCH, actInProgress, extractMessages
 } = require('../utils');
 const AppConfig = require('../appConfig');
 const FgStatus = require('../fgStatus');
@@ -238,15 +238,6 @@ async function triggerPromoteWorkerAction(ow, params, fgStatus) {
     });
 }
 
-function extractMessages(results) {
-    return results ? Object.fromEntries(
-        Object.entries(results).map(([key, value]) => [
-            key,
-            value.map(item => `${item.path}${item.message ? ` (${item.message})` : ''}`)
-        ])
-    ) : results;
-};
-
 /**
  * Marks the proocess as complete and collects all errors and updates excel.
  * @param {*} projectExcelPath Project excel where status needs to be updated
@@ -265,8 +256,7 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
         try {
             batchManager.initBatch({ batchNumber });
             const batch = await batchManager.getCurrentBatch();
-            const resultContent = await batch.getResultsContent();
-            const results = extractMessages(resultContent);
+            const results = await batch.getResultsContent();
             if (results?.failedPromotes?.length > 0) {
                 failedPromotes.push(...results.failedPromotes);
             }
@@ -280,6 +270,10 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
             logger.error(`Error while reading batch content in tracker ${err}`);
         }
     }
+
+    // Extract messages for excels
+    const promoteResults = { failedPromotes, failedPreviews, failedPublishes };
+    const { failedPromotes: failedPromoteMessages = [], failedPreviews: failedPreviewMessages = [], failedPublishes: failedPublisheMesssages = [] } = extractMessages(promoteResults);
 
     const fgErrors = failedPromotes.length > 0 || failedPreviews.length > 0 ||
         failedPublishes.length > 0;
@@ -296,11 +290,11 @@ async function completePromote(projectExcelPath, actDtls, batchManager, fgStatus
     });
 
     const { startTime: startPromote, endTime: endPromote } = fgStatus.getStartEndTime();
-    const excelValues = [['PROMOTE', toUTCStr(startPromote), toUTCStr(endPromote), failedPromotes.join('\n'), failedPreviews.join('\n'), failedPublishes.join('\n')]];
+    const excelValues = [['PROMOTE', toUTCStr(startPromote), toUTCStr(endPromote), failedPromoteMessages.join('\n'), failedPreviewMessages.join('\n'), failedPublisheMesssages.join('\n')]];
     await sharepoint.updateExcelTable(projectExcelPath, 'PROMOTE_STATUS', excelValues);
     logger.info('Project excel file updated with promote status.');
 
-    await batchManager.markComplete(fgErrors ? { failedPromotes, failedPreviews, failedPublishes } : null);
+    await batchManager.markComplete(fgErrors ? promoteResults : null);
     logger.info('Marked complete in batch manager.');
 }
 

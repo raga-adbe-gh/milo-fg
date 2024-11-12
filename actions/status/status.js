@@ -35,9 +35,9 @@ async function main(args) {
     try {
         const appConfig = new AppConfig(args);
         const {
-            type, shareUrl, fgShareUrl
+            type, adminPageUri
         } = args;
-        if (!type || !(shareUrl || fgShareUrl)) {
+        if (!type || !adminPageUri) {
             payload = 'Status : Required data is not available to get the status.';
             logger.error(payload);
         } else {

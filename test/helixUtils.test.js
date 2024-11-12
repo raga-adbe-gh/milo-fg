@@ -42,9 +42,29 @@ describe('HelixUtils', () => {
                 helixAdminApiKeys: { rp: 'key', 'rp-pink': 'key-pink' },
                 enablePreviewPublish: ['rp', 'rp-pink']
             }),
+            getFgFolderToDelete: jest.fn().mockReturnValue({ suffix: '/drafts', url: 'http://example/com/drafts' }),
         };
         HelixUtils = require('../actions/helixUtils');
         helixUtils = new HelixUtils(appConfigMock);
+
+        fetchMock.post('*', () => ({
+            messageId: 'a',
+            job: {
+                name: 'JN',
+            },
+            links: {
+                self: 'https://admin.hlx.page/job/adobecom/cc-pink/main/publish/job-2024-09-21t13-38-15-348z'
+            }
+        }));
+        fetchMock.get('*', () => ({
+            progress: 'stopped',
+            data: {
+                resources: [
+                    { path: '/a', status: 200 },
+                    { path: '/b', status: 200 },
+                ],
+            }
+        }));
     });
 
     afterAll(() => {
@@ -53,7 +73,7 @@ describe('HelixUtils', () => {
 
     it('should return PREVIEW and LIVE', () => {
         const operations = helixUtils.getOperations();
-        expect(operations).toEqual({ PREVIEW: 'preview', LIVE: 'live' });
+        expect(operations).toEqual({ PREVIEW: 'preview', PUBLISH: 'publish', UNPUBLISH: 'unpublish' });
     });
 
     it('should return repo without floodgate', () => {
@@ -82,21 +102,6 @@ describe('HelixUtils', () => {
     });
 
     it('submits bulk preview and publish request', async () => {
-        fetchMock.post('*', () => ({
-            messageId: 'a',
-            job: {
-                name: 'JN',
-            }
-        }));
-        fetchMock.get('*', () => ({
-            progress: 'stopped',
-            data: {
-                resources: [
-                    { path: '/a', status: 200 },
-                    { path: '/b', status: 200 },
-                ],
-            }
-        }));
         const resp = await helixUtils.bulkPreviewPublish(
             ['/a', '/b'],
             'preivew',
@@ -105,5 +110,10 @@ describe('HelixUtils', () => {
         );
         expect(resp).toEqual([{ path: '/a', success: true },
             { path: '/b', success: true }]);
+    });
+
+    it('gets the files to unpublish', async () => {
+        const resp = await helixUtils.getFilesToUnpublish('pink', 1);
+        expect(resp).toEqual([]);
     });
 });

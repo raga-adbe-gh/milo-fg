@@ -27,7 +27,7 @@ async function main(args) {
     const logger = getAioLogger();
     let respPayload;
     const valParams = {
-        statParams: ['rootFolder', 'projectExcelPath'],
+        statParams: ['projectExcelPath'],
         actParams: ['adminPageUri'],
         checkUser: true,
         checkStatus: true,

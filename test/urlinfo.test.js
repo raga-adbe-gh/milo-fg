@@ -19,7 +19,7 @@ const UrlInfo = require('../actions/urlInfo');
 describe('UrlInfo', () => {
     // Constructing a UrlInfo object with a valid adminPageUri sets the urlInfoMap with the correct values.
     it('should set urlInfoMap with correct values when adminPageUri is valid', () => {
-        const adminPageUri = 'https://example.com/admin?project=projectName&referrer=referrerName&owner=ownerName&repo=repoName&ref=branchName';
+        const adminPageUri = 'https://main--main--adobecom.hlx.page/admin?project=projectName&referrer=referrerName&owner=ownerName&repo=repoName&ref=branchName';
         const urlInfo = new UrlInfo(adminPageUri);
 
         expect(urlInfo.getUrlInfo()).toEqual({

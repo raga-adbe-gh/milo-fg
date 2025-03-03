@@ -31,6 +31,20 @@ describe('UrlInfo', () => {
         });
     });
 
+    it('should set urlInfoMap with correct values when adminPageUri is valid with aem.page', () => {
+        const adminPageUri = 'https://main--main--adobecom.aem.page/admin?project=projectName&referrer=referrerName&owner=ownerName&repo=repoName&ref=branchName';
+        const urlInfo = new UrlInfo(adminPageUri);
+
+        expect(urlInfo.getUrlInfo()).toEqual({
+            sp: 'referrerName',
+            owner: 'ownerName',
+            repo: 'repoName',
+            branch: 'branchName',
+            origin: 'https://branchName--repoName--ownerName.aem.page'
+        });
+    });
+
+
     // Constructing a UrlInfo object with an invalid adminPageUri sets the urlInfoMap with undefined values.
     it('should set urlInfoMap with values', () => {
         const adminPageUri = 'https://example.com/admin?project=p&referrer=https://sp/&owner=o&repo=rp&ref=main';
